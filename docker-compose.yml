@@ -1,0 +1,70 @@
+services:
+  # Servicio de Aplicación (Laravel Backend & React Frontend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cup_app
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: Base64:dUd1NnRhM2RyYWdlMTIzNDU2Nzg5MDFhYmNkZWZnaGk=
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: parcial2_CUP
+      DB_USERNAME: cup_admin
+      DB_PASSWORD: CupSecurePassword2026*
+    volumes:
+      - .:/var/www
+    depends_on:
+      - db
+    networks:
+      - cup_network
+
+  # Servidor Web Nginx con WAF ModSecurity habilitado
+  web:
+    image: owasp/modsecurity-crs:nginx-alpine
+    container_name: cup_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PARAMS=check_rule_w_id
+      - BACKEND=http://app:9000
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - .:/var/www
+    depends_on:
+      - app
+    networks:
+      - cup_network
+
+  # Motor de Base de Datos PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: cup_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: parcial2_CUP
+      POSTGRES_USER: cup_admin
+      POSTGRES_PASSWORD: CupSecurePassword2026*
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cup_network
+
+# Redes internas seguras de Docker
+networks:
+  cup_network:
+    driver: bridge
+
+# Volúmenes persistentes para almacenamiento local y respaldo de datos
+volumes:
+  postgres_data:
+    driver: local
