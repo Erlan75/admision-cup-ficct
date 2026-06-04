@@ -5,16 +5,16 @@
 -- ==========================================
 
 -- 1. Función disparadora para calcular el promedio ponderado y estado de aprobación
--- Ponderación: Parcial 1 (25%), Parcial 2 (25%), Examen Final (50%)
--- Nota de aprobación: mayor o igual a 51.00 puntos
+-- Ponderación: Parcial 1 (30%), Parcial 2 (30%), Examen Final (40%)
+-- Nota de aprobación: mayor o igual a 60.00 puntos (regla institucional FICCT/CUP)
 CREATE OR REPLACE FUNCTION fn_trg_01_calcular_nota()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Calcular promedio ponderado dinámicamente
-    NEW.promedio_ponderado := (NEW.parcial_1 * 0.25) + (NEW.parcial_2 * 0.25) + (NEW.examen_final * 0.50);
+    NEW.promedio_ponderado := (NEW.parcial_1 * 0.30) + (NEW.parcial_2 * 0.30) + (NEW.examen_final * 0.40);
 
     -- Determinar estado lógico de aprobación de forma automatizada
-    IF NEW.promedio_ponderado >= 51.00 THEN
+    IF NEW.promedio_ponderado >= 60.00 THEN
         NEW.estado_aprobacion := TRUE;
     ELSE
         NEW.estado_aprobacion := FALSE;

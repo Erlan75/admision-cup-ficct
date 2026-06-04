@@ -50,19 +50,36 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/postulantes/buscar/{ci}', [PostulanteController::class, 'buscar']);
 
     // --- Control Académico ---
-    // Registrar o actualizar notas
+    // CU-12 / CU-13: Registrar acta masiva de calificaciones (lote) con cálculo de promedios vía trigger
     Route::post('/academicos/notas', [AcademicoController::class, 'registrarNotas']);
-    
+
     // Obtener indicadores clave de planificación y rendimiento para el Dashboard
     Route::get('/academicos/dashboard', [AcademicoController::class, 'obtenerEstadisticasDashboard']);
 
-    // --- Módulo de Reportes ---
-    // Reporte de lista general de postulantes
-    Route::get('/reportes/general', [ReporteController::class, 'listaGeneral']);
-    
-    // Reporte de postulantes aprobados
-    Route::get('/reportes/aprobados', [ReporteController::class, 'postulantesAprobados']);
-    
-    // Reporte de postulantes reprobados
-    Route::get('/reportes/reprobados', [ReporteController::class, 'postulantesReprobados']);
+    // CU-12: Listar todos los grupos con sus inscritos y calificaciones actuales (pre-poblado de planilla)
+    Route::get('/academicos/grupos', [AcademicoController::class, 'listarGruposConInscritos']);
+
+    // CU-10 — Algoritmo de Distribución Áulica
+    // Distribuye automáticamente los postulantes sin inscripción en grupos áulicos
+    // invocando el procedimiento almacenado prc_asignar_postulante_grupo(p_postulante_id, p_materia_id)
+    Route::post('/academicos/distribuir-aulas', [AcademicoController::class, 'distribuirPostulantesAulas']);
+
+    // CU-14 — Algoritmo Core de Admisión
+    // Ejecuta el corte de admisión por carrera: bloqueo pesimista, asignación por mérito
+    // y actualización de cupos mediante prc_ejecutar_core_admision(p_carrera_id)
+    Route::post('/academicos/corte-admision', [AcademicoController::class, 'procesarCorteAdmision']);
+
+    // CU-15 — Reasignación Segunda Opción
+    // Reasigna automáticamente los postulantes 'Pendiente Segunda Opción' a su carrera
+    // alternativa o de contingencia (Redes, ID: 3) mediante prc_ejecutar_segunda_opcion()
+    Route::post('/academicos/segunda-opcion', [AcademicoController::class, 'procesarSegundaOpcion']);
+
+    // --- CU-16: Módulo de Reportes Obligatorios ---
+    Route::prefix('reportes')->group(function () {
+        Route::get('/general', [ReporteController::class, 'getReporteGeneral']);
+        Route::get('/aprobados', [ReporteController::class, 'getReporteAprobados']);
+        Route::get('/reprobados', [ReporteController::class, 'getReporteReprobados']);
+        Route::get('/estadisticas', [ReporteController::class, 'getEstadisticasGlobales']);
+        Route::get('/rendimiento-grupos', [ReporteController::class, 'getRendimientoGrupos']);
+    });
 });
