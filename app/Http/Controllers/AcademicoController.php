@@ -123,14 +123,24 @@ class AcademicoController extends Controller
      */
     public function obtenerEstadisticasDashboard(): JsonResponse
     {
-        // 1. Total de inscritos
-        $totalInscritos = Inscripcion::count();
+        // 1. Total de inscritos únicos
+        $totalInscritos = Inscripcion::distinct('postulante_id')->count('postulante_id');
 
-        // 2. Total de aprobados
-        $totalAprobados = Calificacion::where('estado_aprobacion', true)->count();
+        // 2. Total de aprobados (alumnos que aprobaron las 4 materias)
+        $totalAprobados = DB::table('inscripciones')
+            ->join('calificaciones', 'inscripciones.id', '=', 'calificaciones.inscripcion_id')
+            ->where('calificaciones.estado_aprobacion', true)
+            ->groupBy('inscripciones.postulante_id')
+            ->havingRaw('COUNT(calificaciones.id) = 4')
+            ->get()
+            ->count();
 
-        // 3. Total de reprobados
-        $totalReprobados = Calificacion::where('estado_aprobacion', false)->count();
+        // 3. Total de reprobados (alumnos que reprobaron al menos una materia)
+        $totalReprobados = DB::table('inscripciones')
+            ->join('calificaciones', 'inscripciones.id', '=', 'calificaciones.inscripcion_id')
+            ->where('calificaciones.estado_aprobacion', false)
+            ->distinct('inscripciones.postulante_id')
+            ->count('inscripciones.postulante_id');
 
         // 4. Cantidad de grupos dinámicos necesarios basados en la capacidad física máxima estricta de 60 por aula
         $gruposNecesarios = ceil($totalInscritos / 60);
@@ -159,9 +169,6 @@ class AcademicoController extends Controller
      */
     public function distribuirPostulantesAulas(): JsonResponse
     {
-        // ID de materia por defecto (Ciclo 2 — asignación inicial)
-        $materiaIdDefault = 1;
-
         DB::beginTransaction();
 
         try {
@@ -177,14 +184,40 @@ class AcademicoController extends Controller
                 ], 200);
             }
 
+            // Obtener todas las materias oficiales registradas (Computación, Matemáticas, Física, Inglés)
+            $materias = DB::table('materias')->orderBy('id')->get();
+
             $totalAsignados = 0;
 
             foreach ($postulantes as $postulante) {
-                // Invocar el procedimiento almacenado de PostgreSQL
-                DB::statement(
-                    'CALL prc_asignar_postulante_grupo(?, ?)',
-                    [$postulante->id, $materiaIdDefault]
-                );
+                foreach ($materias as $materia) {
+                    // Invocar el procedimiento almacenado de PostgreSQL
+                    DB::statement(
+                        'CALL prc_asignar_postulante_grupo(?, ?)',
+                        [$postulante->id, $materia->id]
+                    );
+
+                    // Obtener el ID de la inscripción recién creada para esta materia
+                    $inscripcionId = DB::table('inscripciones')
+                        ->join('grupos', 'inscripciones.grupo_id', '=', 'grupos.id')
+                        ->where('inscripciones.postulante_id', $postulante->id)
+                        ->where('grupos.materia_id', $materia->id)
+                        ->value('inscripciones.id');
+
+                    if ($inscripcionId) {
+                        // Generar automáticamente su registro en la tabla calificaciones con notas iniciales en cero
+                        DB::table('calificaciones')->insert([
+                            'inscripcion_id'     => $inscripcionId,
+                            'parcial_1'          => 0.00,
+                            'parcial_2'          => 0.00,
+                            'examen_final'       => 0.00,
+                            'promedio_ponderado' => 0.00,
+                            'estado_aprobacion'  => false,
+                            'created_at'         => now(),
+                            'updated_at'         => now(),
+                        ]);
+                    }
+                }
 
                 $totalAsignados++;
             }

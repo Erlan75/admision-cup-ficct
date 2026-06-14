@@ -59,11 +59,17 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT p.nombres, p.apellidos, c.promedio_ponderado, c.estado_aprobacion, p.estado_final
+    SELECT 
+        p.nombres, 
+        p.apellidos, 
+        COALESCE(AVG(c.promedio_ponderado), 0.00)::NUMERIC(5,2) AS promedio, 
+        (COUNT(CASE WHEN c.estado_aprobacion = TRUE THEN 1 END) = 4) AS aprobado, 
+        p.estado_final AS estado
     FROM postulantes p
     LEFT JOIN inscripciones i ON p.id = i.postulante_id
     LEFT JOIN calificaciones c ON i.id = c.inscripcion_id
     WHERE p.ci = p_ci
+    GROUP BY p.id, p.nombres, p.apellidos, p.estado_final
     LIMIT 1;
 END;
 $$;
@@ -101,9 +107,10 @@ DECLARE
         JOIN inscripciones i  ON p.id = i.postulante_id
         JOIN calificaciones c ON i.id  = c.inscripcion_id
         WHERE p.opcion1_carrera_id = p_carrera_id
-          AND c.estado_aprobacion  = TRUE   -- promedio_ponderado >= 60.00 (calculado por trg_01)
           AND p.estado_final NOT IN ('Admitido', 'No Admitido')
-        ORDER BY c.promedio_ponderado DESC;
+        GROUP BY p.id
+        HAVING COUNT(CASE WHEN c.estado_aprobacion = TRUE THEN 1 END) = 4
+        ORDER BY AVG(c.promedio_ponderado) DESC;
 
     v_postulante_id     BIGINT;
 
@@ -122,16 +129,18 @@ BEGIN
     END IF;
 
     -- ── Paso 2: Marcar masivamente como 'No Admitido' a los reprobados ──────
-    -- Un postulante es reprobado cuando promedio_ponderado < 60.00 (FALSE en el trigger)
+    -- Un postulante es reprobado cuando no aprueba las 4 materias (al menos una reprobada o faltante)
     UPDATE postulantes p
     SET    estado_final = 'No Admitido',
            updated_at   = CURRENT_TIMESTAMP
-    FROM   inscripciones i
-    JOIN   calificaciones c ON i.id = c.inscripcion_id
-    WHERE  p.id = i.postulante_id
-      AND  p.opcion1_carrera_id = p_carrera_id
-      AND  c.estado_aprobacion  = FALSE
-      AND  p.estado_final NOT IN ('No Admitido');
+    WHERE  p.opcion1_carrera_id = p_carrera_id
+      AND  p.estado_final NOT IN ('No Admitido')
+      AND  p.id IN (
+          SELECT i.postulante_id
+          FROM inscripciones i
+          JOIN calificaciones c ON i.id = c.inscripcion_id
+          WHERE c.estado_aprobacion = FALSE
+      );
 
     RAISE NOTICE 'Paso 2 completado: postulantes reprobados marcados como No Admitido.';
 
@@ -217,8 +226,9 @@ DECLARE
         JOIN   inscripciones i  ON p.id  = i.postulante_id
         JOIN   calificaciones c ON i.id  = c.inscripcion_id
         WHERE  p.estado_final        = 'Pendiente Segunda Opción'
-          AND  c.estado_aprobacion   = TRUE   -- promedio_ponderado >= 60.00 (calculado por trg_01)
-        ORDER BY c.promedio_ponderado DESC;
+        GROUP BY p.id, p.opcion2_carrera_id
+        HAVING COUNT(CASE WHEN c.estado_aprobacion = TRUE THEN 1 END) = 4
+        ORDER BY AVG(c.promedio_ponderado) DESC;
 
 BEGIN
     RAISE NOTICE 'CU-15 iniciado: procesando reasignación de segunda opción...';

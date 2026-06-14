@@ -127,4 +127,145 @@ class PostulanteController extends Controller
 
         return response()->json($postulante);
     }
+
+    /**
+     * CU-03 — Carga Masiva de Postulantes (CSV / Excel).
+     *
+     * Recibe un archivo .csv con las columnas:
+     * ci, nombres, apellidos, fecha_nacimiento, sexo, email,
+     * opcion1_carrera_id, opcion2_carrera_id, direccion, telefono,
+     * colegio_procedencia, ciudad
+     *
+     * Cada fila se procesa individualmente; las filas con CI o email
+     * duplicados se registran como errores sin detener el lote.
+     */
+    public function importarLoteCSV(Request $request): JsonResponse
+    {
+        $request->validate([
+            'archivo' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ], [
+            'archivo.required' => 'Debe seleccionar un archivo CSV o Excel.',
+            'archivo.mimes'    => 'El formato del archivo debe ser CSV (.csv) o Excel (.xlsx/.xls).',
+            'archivo.max'      => 'El archivo no debe superar los 5 MB.',
+        ]);
+
+        $archivo = $request->file('archivo');
+        $handle  = fopen($archivo->getRealPath(), 'r');
+
+        if (! $handle) {
+            return response()->json(['error' => 'No se pudo abrir el archivo.'], 422);
+        }
+
+        // Leer cabecera
+        $cabecera = fgetcsv($handle, 0, ',');
+        if (! $cabecera) {
+            fclose($handle);
+            return response()->json(['error' => 'El archivo está vacío o tiene un formato incorrecto.'], 422);
+        }
+
+        // Normalizar nombres de columna (trim + lowercase)
+        $cabecera = array_map(fn($col) => strtolower(trim($col)), $cabecera);
+
+        $rolPostulante = Role::firstOrCreate(
+            ['nombre_rol' => 'Postulante'],
+            ['descripcion' => 'Rol asignado para los postulantes del CUP']
+        );
+
+        $insertados = 0;
+        $errores    = [];
+        $fila       = 1;
+
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            $fila++;
+
+            // Mapear columnas por índice
+            $datos = array_combine($cabecera, array_pad($row, count($cabecera), null));
+
+            // Validaciones mínimas por fila
+            if (empty($datos['ci']) || empty($datos['nombres']) || empty($datos['apellidos']) || empty($datos['email'])) {
+                $errores[] = "Fila {$fila}: campos obligatorios faltantes (ci, nombres, apellidos, email).";
+                continue;
+            }
+
+            // Verificar duplicados
+            if (Postulante::where('ci', $datos['ci'])->exists()) {
+                $errores[] = "Fila {$fila}: CI {$datos['ci']} ya está registrado.";
+                continue;
+            }
+            if (User::where('email', $datos['email'])->exists()) {
+                $errores[] = "Fila {$fila}: email {$datos['email']} ya está registrado.";
+                continue;
+            }
+
+            DB::beginTransaction();
+            try {
+                $usuario = User::create([
+                    'rol_id'        => $rolPostulante->id,
+                    'email'         => $datos['email'],
+                    'password_hash' => Hash::make($datos['ci']),
+                    'full_name'     => trim($datos['nombres'] . ' ' . $datos['apellidos']),
+                    'is_active'     => true,
+                ]);
+
+                Postulante::create([
+                    'user_id'              => $usuario->id,
+                    'ci'                   => $datos['ci'],
+                    'nombres'              => $datos['nombres'],
+                    'apellidos'            => $datos['apellidos'],
+                    'fecha_nacimiento'     => $datos['fecha_nacimiento'] ?? null,
+                    'sexo'                 => $datos['sexo'] ?? 'X',
+                    'direccion'            => $datos['direccion'] ?? null,
+                    'telefono'             => $datos['telefono'] ?? null,
+                    'colegio_procedencia'  => $datos['colegio_procedencia'] ?? null,
+                    'ciudad'               => $datos['ciudad'] ?? null,
+                    'opcion1_carrera_id'   => $datos['opcion1_carrera_id'] ?? 1,
+                    'opcion2_carrera_id'   => $datos['opcion2_carrera_id'] ?? 1,
+                    'estado_final'         => 'Pendiente',
+                ]);
+
+                DB::commit();
+                $insertados++;
+            } catch (Exception $e) {
+                DB::rollBack();
+                $errores[] = "Fila {$fila}: {$e->getMessage()}";
+            }
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'mensaje'    => "Carga masiva completada. {$insertados} postulante(s) registrado(s).",
+            'insertados' => $insertados,
+            'errores'    => $errores,
+        ]);
+    }
+
+    /**
+     * CU-07 — Simulación de Pasarela de Pagos QR (Webhook).
+     *
+     * Simula la confirmación asíncrona de pagos: marca todos los
+     * postulantes con estado_pago = 'Pendiente' como 'Pagado',
+     * simulando la respuesta de un proveedor externo de pagos QR.
+     */
+    public function simularPasarelaQR(): JsonResponse
+    {
+        try {
+            $actualizados = Postulante::where('estado_pago', 'Pendiente')
+                ->update([
+                    'estado_pago'       => 'Pagado',
+                    'pago_confirmado'   => true,
+                    'fecha_pago'        => now(),
+                ]);
+
+            return response()->json([
+                'mensaje'      => "Webhook de pagos QR procesado con éxito.",
+                'confirmados'  => $actualizados,
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error'   => 'Error al procesar la simulación de pagos.',
+                'detalle' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

@@ -49,6 +49,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Buscar un postulante por su Cédula de Identidad (CI)
     Route::get('/postulantes/buscar/{ci}', [PostulanteController::class, 'buscar']);
 
+    // CU-03 — Carga Masiva de Postulantes (CSV/Excel)
+    Route::post('/postulantes/importar-lote', [PostulanteController::class, 'importarLoteCSV']);
+
+    // CU-07 — Simulación de Pasarela de Pagos QR (Webhook)
+    Route::post('/postulantes/webhook-pago-qr', [PostulanteController::class, 'simularPasarelaQR']);
+
     // --- Control Académico ---
     // CU-12 / CU-13: Registrar acta masiva de calificaciones (lote) con cálculo de promedios vía trigger
     Route::post('/academicos/notas', [AcademicoController::class, 'registrarNotas']);

@@ -33,8 +33,8 @@ class ReporteController extends Controller
     {
         $aprobados = Postulante::with(['usuario', 'carreraOpcion1', 'carreraOpcion2', 'inscripciones.calificacion'])
             ->whereHas('inscripciones.calificacion', function ($query) {
-                $query->where('promedio_ponderado', '>=', 60.00);
-            })
+                $query->where('estado_aprobacion', true);
+            }, '=', 4)
             ->get();
 
         return response()->json($aprobados);
@@ -49,7 +49,7 @@ class ReporteController extends Controller
     {
         $reprobados = Postulante::with(['usuario', 'carreraOpcion1', 'carreraOpcion2', 'inscripciones.calificacion'])
             ->whereHas('inscripciones.calificacion', function ($query) {
-                $query->where('promedio_ponderado', '<', 60.00);
+                $query->where('estado_aprobacion', false);
             })
             ->get();
 

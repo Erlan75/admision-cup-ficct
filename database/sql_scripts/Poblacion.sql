@@ -19,9 +19,10 @@ INSERT INTO carreras (nombre_carrera, cupo_limite, total_admitidos) VALUES
 
 -- 3. Insertar materias básicas del examen CUP
 INSERT INTO materias (sigla, nombre) VALUES
-('MAT-101', 'Introducción a la Informática'),
-('MAT-102', 'Cálculo I'),
-('MAT-103', 'Física I');
+('COMP-101', 'Computación'),
+('MAT-101', 'Matemáticas'),
+('FIS-101', 'Física'),
+('ING-101', 'Inglés');
 
 -- 4. Insertar aulas con restricción de capacidad (tope estricto <= 60)
 INSERT INTO aulas (codigo_aula, capacidad_fisica) VALUES
@@ -42,5 +43,7 @@ INSERT INTO docentes (user_id, especialidad_maestria, diplomado_superior) VALUES
 
 -- 7. Registrar grupos de estudio asociados a docentes y aulas
 INSERT INTO grupos (materia_id, docente_id, aula_id, nombre_paralelo, cupo_inscritos) VALUES
-(1, 1, 1, 'Grupo A - Mañana', 0),
-(2, 1, 2, 'Grupo B - Tarde', 0);
+(1, 1, 1, 'Grupo A - COMP', 0),
+(2, 1, 2, 'Grupo B - MAT', 0),
+(3, 1, 3, 'Grupo C - FIS', 0),
+(4, 1, 4, 'Grupo D - ING', 0);

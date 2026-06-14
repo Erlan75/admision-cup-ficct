@@ -14,6 +14,10 @@ const DashboardAdmin = (props) => {
     const [distribucionLoading, setDistribucionLoading] = useState(false);
     const [distribucionAlert, setDistribucionAlert] = useState(null); // { type: 'success'|'error', mensaje, detalle? }
 
+    // --- CU-14: Estado del Corte de Admisión ---
+    const [admisionLoading, setAdmisionLoading] = useState(false);
+    const [admisionAlert, setAdmisionAlert] = useState(null);
+
     // --- CU-15: Estado de la Segunda Opción ---
     const [segundaOpcionLoading, setSegundaOpcionLoading] = useState(false);
     const [segundaOpcionAlert, setSegundaOpcionAlert] = useState(null);
@@ -109,6 +113,67 @@ const DashboardAdmin = (props) => {
             });
         } finally {
             setDistribucionLoading(false);
+        }
+    };
+
+    /**
+     * CU-14 — Algoritmo Core de Admisión por Mérito
+     * Consume el endpoint POST /api/academicos/corte-admision
+     */
+    const handleEjecutarAdmision = async () => {
+        if (!window.confirm('¿Estás seguro de ejecutar el Algoritmo de Admisión por Mérito (CU-14)? Esta acción calculará los cortes de admisión y asignará estados definitivos a los postulantes.')) {
+            return;
+        }
+
+        setAdmisionLoading(true);
+        setAdmisionAlert(null);
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/academicos/corte-admision', {
+                method: 'POST',
+                headers: {
+                    'Accept':        'application/json',
+                    'Content-Type':  'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setAdmisionAlert({
+                    type:    'success',
+                    mensaje: data.mensaje || 'Corte de admisión ejecutado correctamente.',
+                    detalle: data.resumen
+                        ? `Admitidos: ${data.resumen.admitidos ?? 0} | No Admitidos: ${data.resumen.no_admitidos ?? 0} | Pendientes 2da Opción: ${data.resumen.pendiente_segunda ?? 0}`
+                        : null,
+                });
+
+                // Refrescar métricas del dashboard
+                const dashRes = await fetch('/api/academicos/dashboard', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+                });
+                if (dashRes.ok) {
+                    const dashData = await dashRes.json();
+                    setStats(dashData);
+                }
+            } else {
+                setAdmisionAlert({
+                    type:    'error',
+                    mensaje: data.error   || 'Error al ejecutar el corte de admisión.',
+                    detalle: data.detalle || null,
+                });
+            }
+        } catch (err) {
+            setAdmisionAlert({
+                type:    'error',
+                mensaje: 'Error de red al conectar con el servidor.',
+                detalle: err.message || null,
+            });
+        } finally {
+            setAdmisionLoading(false);
         }
     };
 
@@ -225,6 +290,37 @@ const DashboardAdmin = (props) => {
                         )}
                     </button>
 
+                    {/* ── Botón CU-14: Admisión por Mérito ── */}
+                    <button
+                        id="btn-corte-admision"
+                        onClick={handleEjecutarAdmision}
+                        disabled={admisionLoading}
+                        className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
+                                   bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600
+                                   hover:from-emerald-500 hover:via-green-500 hover:to-teal-500
+                                   shadow-lg shadow-emerald-900/50 hover:shadow-emerald-700/60
+                                   disabled:opacity-60 disabled:cursor-not-allowed
+                                   transition-all duration-200 active:scale-95"
+                    >
+                        {admisionLoading ? (
+                            <>
+                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                                <span>Procesando Admisión...</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                                <span>Ejecutar Admisión por Mérito (CU-14)</span>
+                            </>
+                        )}
+                    </button>
+
                     {/* ── Botón CU-15: Segunda Opción ── */}
                     <button
                         id="btn-segunda-opcion"
@@ -296,6 +392,41 @@ const DashboardAdmin = (props) => {
                         </div>
                         <button
                             onClick={() => setDistribucionAlert(null)}
+                            className="ml-auto opacity-60 hover:opacity-100 transition-opacity text-lg leading-none"
+                            aria-label="Cerrar alerta"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Alerta CU-14: Resultado de Admisión por Mérito ── */}
+                {admisionAlert && (
+                    <div
+                        role="alert"
+                        className={`p-4 rounded-2xl flex items-start gap-3 text-sm font-medium border transition-all duration-300 ${
+                            admisionAlert.type === 'success'
+                                ? 'bg-emerald-950/40 border-emerald-700 text-emerald-300'
+                                : 'bg-rose-950/40 border-rose-800 text-rose-300'
+                        }`}
+                    >
+                        {admisionAlert.type === 'success' ? (
+                            <svg className="w-5 h-5 mt-0.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5 mt-0.5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        )}
+                        <div>
+                            <p>{admisionAlert.mensaje}</p>
+                            {admisionAlert.detalle && (
+                                <p className="mt-1 opacity-75 text-xs">{admisionAlert.detalle}</p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setAdmisionAlert(null)}
                             className="ml-auto opacity-60 hover:opacity-100 transition-opacity text-lg leading-none"
                             aria-label="Cerrar alerta"
                         >
