@@ -88,4 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/estadisticas', [ReporteController::class, 'getEstadisticasGlobales']);
         Route::get('/rendimiento-grupos', [ReporteController::class, 'getRendimientoGrupos']);
     });
+
+    // CU-11: Control de Choques de Horarios y Carga Docente
+    Route::post('/academicos/grupos/asignar-docente', [AcademicoController::class, 'asignarDocenteGrupo']);
 });

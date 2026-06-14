@@ -377,4 +377,79 @@ class AcademicoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * CU-11 — Control de Choques de Horarios y Carga Docente.
+     *
+     * Asigna un docente a un paralelo (grupo), registrando el día y horario.
+     * Si se viola la carga límite (máx 4 grupos) o hay choque de horarios,
+     * el trigger trg_validar_carga_horaria_docente lanzará una excepción
+     * que se captura aquí para retornar un error 422 estructurado.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function asignarDocenteGrupo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id'    => ['required', 'integer', 'exists:grupos,id'],
+            'docente_id'  => ['required', 'integer', 'exists:docentes,id'],
+            'dia_semana'  => ['required', 'string', 'max:20'],
+            'hora_inicio' => ['required', 'string'],
+            'hora_fin'    => ['required', 'string'],
+        ], [
+            'grupo_id.required'    => 'El grupo_id es requerido.',
+            'grupo_id.exists'      => 'El grupo especificado no existe.',
+            'docente_id.required'  => 'El docente_id es requerido.',
+            'docente_id.exists'    => 'El docente especificado no existe.',
+            'dia_semana.required'  => 'El día de la semana es requerido.',
+            'hora_inicio.required' => 'La hora de inicio es requerida.',
+            'hora_fin.required'    => 'La hora de fin es requerida.',
+        ]);
+
+        try {
+            DB::table('grupos')
+                ->where('id', $request->grupo_id)
+                ->update([
+                    'docente_id'  => $request->docente_id,
+                    'dia_semana'  => $request->dia_semana,
+                    'hora_inicio' => $request->hora_inicio,
+                    'hora_fin'    => $request->hora_fin,
+                    'updated_at'  => now(),
+                ]);
+
+            return response()->json([
+                'mensaje' => 'Docente asignado al grupo con éxito.',
+            ], 200);
+
+        } catch (Throwable $e) {
+            $mensajeError = $e->getMessage();
+
+            // Detectar si el error es provocado por el trigger
+            $esErrorTrigger = str_contains($mensajeError, 'carga')
+                || str_contains(strtolower($mensajeError), 'limite')
+                || str_contains(strtolower($mensajeError), 'límite')
+                || str_contains(strtolower($mensajeError), 'choque')
+                || str_contains(strtolower($mensajeError), 'horario')
+                || str_contains(strtolower($mensajeError), 'overlap')
+                || str_contains(strtolower($mensajeError), 'traslapa');
+
+            if ($esErrorTrigger) {
+                $detalle = $mensajeError;
+                // Limpiar mensaje de error de Postgres para mostrar un mensaje limpio
+                if (preg_match('/ERROR:\s*(.*?)(?:\n|CONTEXT:|$)/s', $mensajeError, $matches)) {
+                    $detalle = trim($matches[1]);
+                }
+                return response()->json([
+                    'error'   => 'Error de validación horaria / carga docente.',
+                    'detalle' => $detalle,
+                ], 422);
+            }
+
+            return response()->json([
+                'error'   => 'Error interno durante la asignación del docente.',
+                'detalle' => $mensajeError,
+            ], 500);
+        }
+    }
 }

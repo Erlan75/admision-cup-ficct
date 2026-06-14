@@ -18,6 +18,9 @@ return new class extends Migration
             $table->foreignId('aula_id')->constrained('aulas');
             $table->string('nombre_paralelo', 20); // Ej: 'Paralelo B1'
             $table->integer('cupo_inscritos')->default(0);
+            $table->string('dia_semana', 20)->nullable();
+            $table->time('hora_inicio')->nullable();
+            $table->time('hora_fin')->nullable();
             $table->timestamps();
         });
     }
