@@ -213,7 +213,7 @@ class PostulanteController extends Controller
             $carrerasExistentesCount = \App\Models\Carrera::whereIn('id', [$id1, $id2])->count();
             $uniqueIdsCount = count(array_unique([$id1, $id2]));
             if ($carrerasExistentesCount < $uniqueIdsCount) {
-                $errores[] = "Fila {$fila}: IDs de carrera inválidos.";
+                $errores[] = "Fila {$fila}: IDs de carrera inválidos o inexistentes.";
                 continue;
             }
 

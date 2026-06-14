@@ -69,7 +69,7 @@ BEGIN
       AND id <> COALESCE(OLD.id, -1);
 
     IF v_grupo_count >= 4 THEN
-        RAISE EXCEPTION 'Límite de carga excedido: El docente ya tiene asignados 4 grupos.';
+        RAISE EXCEPTION 'Límite de carga docente excedido (Máximo 4 grupos)';
     END IF;
 
     -- Regla B: Evitar choque de horarios en el mismo día y rango de horas
@@ -85,7 +85,7 @@ BEGIN
         ) INTO v_overlap;
 
         IF v_overlap THEN
-            RAISE EXCEPTION 'Choque de horarios detectado: El docente ya tiene asignado un grupo en ese rango de horas el día %.', NEW.dia_semana;
+            RAISE EXCEPTION 'Choque de horarios detectado para el docente';
         END IF;
     END IF;
 
