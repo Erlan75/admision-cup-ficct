@@ -187,6 +187,36 @@ class PostulanteController extends Controller
                 continue;
             }
 
+            // [Validación de Campos Vacíos Obligatorios]
+            $camposFaltantes = [];
+            if (empty($datos['fecha_nacimiento'])) {
+                $camposFaltantes[] = 'fecha_nacimiento';
+            }
+            if (empty($datos['sexo'])) {
+                $camposFaltantes[] = 'sexo';
+            }
+            if (empty($datos['opcion1_carrera_id'])) {
+                $camposFaltantes[] = 'opcion1_carrera_id';
+            }
+            if (empty($datos['opcion2_carrera_id'])) {
+                $camposFaltantes[] = 'opcion2_carrera_id';
+            }
+
+            if (!empty($camposFaltantes)) {
+                $errores[] = "Fila {$fila}: campos obligatorios faltantes (" . implode(', ', $camposFaltantes) . ").";
+                continue;
+            }
+
+            // [Validación de Integridad de Carreras]
+            $id1 = $datos['opcion1_carrera_id'];
+            $id2 = $datos['opcion2_carrera_id'];
+            $carrerasExistentesCount = \App\Models\Carrera::whereIn('id', [$id1, $id2])->count();
+            $uniqueIdsCount = count(array_unique([$id1, $id2]));
+            if ($carrerasExistentesCount < $uniqueIdsCount) {
+                $errores[] = "Fila {$fila}: IDs de carrera inválidos.";
+                continue;
+            }
+
             // Verificar duplicados
             if (Postulante::where('ci', $datos['ci'])->exists()) {
                 $errores[] = "Fila {$fila}: CI {$datos['ci']} ya está registrado.";
@@ -212,14 +242,14 @@ class PostulanteController extends Controller
                     'ci'                   => $datos['ci'],
                     'nombres'              => $datos['nombres'],
                     'apellidos'            => $datos['apellidos'],
-                    'fecha_nacimiento'     => $datos['fecha_nacimiento'] ?? null,
-                    'sexo'                 => $datos['sexo'] ?? 'X',
+                    'fecha_nacimiento'     => $datos['fecha_nacimiento'],
+                    'sexo'                 => $datos['sexo'],
                     'direccion'            => $datos['direccion'] ?? null,
                     'telefono'             => $datos['telefono'] ?? null,
                     'colegio_procedencia'  => $datos['colegio_procedencia'] ?? null,
                     'ciudad'               => $datos['ciudad'] ?? null,
-                    'opcion1_carrera_id'   => $datos['opcion1_carrera_id'] ?? 1,
-                    'opcion2_carrera_id'   => $datos['opcion2_carrera_id'] ?? 1,
+                    'opcion1_carrera_id'   => $datos['opcion1_carrera_id'],
+                    'opcion2_carrera_id'   => $datos['opcion2_carrera_id'],
                     'estado_final'         => 'Pendiente',
                 ]);
 
