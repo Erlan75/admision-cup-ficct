@@ -25,16 +25,57 @@ use App\Http\Controllers\ReporteController;
 // Iniciar sesión (Generar token Sanctum)
 Route::post('/login', [AuthController::class, 'iniciarSesion']);
 
-// Ruta de despliegue temporal para obtener credenciales
-Route::get('/dev/env', function () {
-    return response()->json([
-        'DB_HOST' => env('DB_HOST'),
-        'DB_PORT' => env('DB_PORT'),
-        'DB_DATABASE' => env('DB_DATABASE'),
-        'DB_USERNAME' => env('DB_USERNAME'),
-        'DB_PASSWORD' => env('DB_PASSWORD'),
-        'DATABASE_URL' => env('DATABASE_URL'),
-    ]);
+// Ruta de despliegue temporal para inicializar la base de datos de producción
+Route::get('/dev/deploy-db', function () {
+    try {
+        // Ejecutar migraciones
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
+        $output1 = \Illuminate\Support\Facades\Artisan::output();
+        
+        // Ejecutar scripts SQL
+        $files = [
+            database_path('sql_scripts/Script.sql'),
+            database_path('sql_scripts/Poblacion.sql'),
+            database_path('sql_scripts/Procedimientos.sql'),
+            database_path('sql_scripts/Triggers.sql'),
+        ];
+        
+        foreach ($files as $file) {
+            if (!file_exists($file)) {
+                throw new \Exception("File not found: " . basename($file));
+            }
+            $sql = file_get_contents($file);
+            try {
+                \Illuminate\Support\Facades\DB::unprepared($sql);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (str_contains($msg, 'already exists') || str_contains($msg, 'ya existe')) {
+                    // Ignorar duplicados tal como hace load_sql.php
+                } else {
+                    throw $e;
+                }
+            }
+        }
+        $output2 = "SQL scripts loaded successfully.";
+        
+        // Ejecutar el sembrado
+        ob_start();
+        include base_path('tinker_seed.php');
+        $output3 = ob_get_clean();
+        
+        return response()->json([
+            'status' => 'success',
+            'migrations' => $output1,
+            'sql_load' => $output2,
+            'seed' => $output3
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
 });
 
 // Registro externo/público de postulantes

@@ -58,6 +58,7 @@ try {
 
     echo "Seeding paid postulantes from Lote.csv...\n";
     $counter = 0;
+    $defaultPasswordHash = bcrypt('password');
 
     while (($row = fgetcsv($handle, 0, ',')) !== false) {
         $data = array_combine($header, array_pad($row, count($header), null));
@@ -80,7 +81,7 @@ try {
         $pUser = User::create([
             'rol_id'        => 3,
             'email'         => $data['email'],
-            'password_hash' => bcrypt('password'),
+            'password_hash' => $defaultPasswordHash,
             'full_name'     => trim($data['nombres'] . ' ' . $data['apellidos']),
             'is_active'     => true,
         ]);
