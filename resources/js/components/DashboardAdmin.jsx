@@ -51,7 +51,21 @@ const DashboardAdmin = (props) => {
         fetchDashboardData();
     }, []);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            try {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                    }
+                });
+            } catch (e) {
+                console.error("Logout request failed: ", e);
+            }
+        }
         localStorage.clear();
         if (props.onNavigate) {
             props.onNavigate('login');
@@ -121,7 +135,7 @@ const DashboardAdmin = (props) => {
      * Consume el endpoint POST /api/academicos/corte-admision
      */
     const handleEjecutarAdmision = async () => {
-        if (!window.confirm('¿Estás seguro de ejecutar el Algoritmo de Admisión por Mérito (CU-14)? Esta acción calculará los cortes de admisión y asignará estados definitivos a los postulantes.')) {
+        if (!window.confirm('¿Estás seguro de ejecutar el Algoritmo de Admisión por Mérito? Esta acción calculará los cortes de admisión y asignará estados definitivos a los postulantes.')) {
             return;
         }
 
@@ -260,97 +274,103 @@ const DashboardAdmin = (props) => {
 
                 <div className="flex flex-wrap items-center gap-3">
                     {/* ── Botón CU-10: Distribución Áulica ── */}
-                    <button
-                        id="btn-distribuir-aulas"
-                        onClick={handleEjecutarDistribucion}
-                        disabled={distribucionLoading}
-                        className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
-                                   bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600
-                                   hover:from-violet-500 hover:via-indigo-500 hover:to-blue-500
-                                   shadow-lg shadow-indigo-900/50 hover:shadow-indigo-700/60
-                                   disabled:opacity-60 disabled:cursor-not-allowed
-                                   transition-all duration-200 active:scale-95"
-                    >
-                        {distribucionLoading ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                                <span>Distribuyendo...</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <span>Ejecutar Distribución Áulica (CU-10)</span>
-                            </>
-                        )}
-                    </button>
+                    {(localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador') && (
+                        <button
+                            id="btn-distribuir-aulas"
+                            onClick={handleEjecutarDistribucion}
+                            disabled={distribucionLoading}
+                            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
+                                       bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600
+                                       hover:from-violet-500 hover:via-indigo-500 hover:to-blue-500
+                                       shadow-lg shadow-indigo-900/50 hover:shadow-indigo-700/60
+                                       disabled:opacity-60 disabled:cursor-not-allowed
+                                       transition-all duration-200 active:scale-95"
+                        >
+                            {distribucionLoading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    <span>Distribuyendo...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                    <span>Ejecutar Distribución Áulica</span>
+                                </>
+                            )}
+                        </button>
+                    )}
 
                     {/* ── Botón CU-14: Admisión por Mérito ── */}
-                    <button
-                        id="btn-corte-admision"
-                        onClick={handleEjecutarAdmision}
-                        disabled={admisionLoading}
-                        className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
-                                   bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600
-                                   hover:from-emerald-500 hover:via-green-500 hover:to-teal-500
-                                   shadow-lg shadow-emerald-900/50 hover:shadow-emerald-700/60
-                                   disabled:opacity-60 disabled:cursor-not-allowed
-                                   transition-all duration-200 active:scale-95"
-                    >
-                        {admisionLoading ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                                <span>Procesando Admisión...</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                                <span>Ejecutar Admisión por Mérito (CU-14)</span>
-                            </>
-                        )}
-                    </button>
+                    {(localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador') && (
+                        <button
+                            id="btn-corte-admision"
+                            onClick={handleEjecutarAdmision}
+                            disabled={admisionLoading}
+                            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
+                                       bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600
+                                       hover:from-emerald-500 hover:via-green-500 hover:to-teal-500
+                                       shadow-lg shadow-emerald-900/50 hover:shadow-emerald-700/60
+                                       disabled:opacity-60 disabled:cursor-not-allowed
+                                       transition-all duration-200 active:scale-95"
+                        >
+                            {admisionLoading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    <span>Procesando Admisión...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                    <span>Ejecutar Admisión por Mérito</span>
+                                </>
+                            )}
+                        </button>
+                    )}
 
                     {/* ── Botón CU-15: Segunda Opción ── */}
-                    <button
-                        id="btn-segunda-opcion"
-                        onClick={handleEjecutarSegundaOpcion}
-                        disabled={segundaOpcionLoading}
-                        className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
-                                   bg-gradient-to-r from-amber-500 to-orange-600
-                                   hover:from-amber-400 hover:to-orange-500
-                                   shadow-lg shadow-orange-900/50 hover:shadow-orange-700/60
-                                   disabled:opacity-60 disabled:cursor-not-allowed
-                                   transition-all duration-200 active:scale-95"
-                    >
-                        {segundaOpcionLoading ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                </svg>
-                                <span>Procesando...</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                <span>Ejecutar Segunda Opción (CU-15)</span>
-                            </>
-                        )}
-                    </button>
+                    {(localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador') && (
+                        <button
+                            id="btn-segunda-opcion"
+                            onClick={handleEjecutarSegundaOpcion}
+                            disabled={segundaOpcionLoading}
+                            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold
+                                       bg-gradient-to-r from-amber-500 to-orange-600
+                                       hover:from-amber-400 hover:to-orange-500
+                                       shadow-lg shadow-orange-900/50 hover:shadow-orange-700/60
+                                       disabled:opacity-60 disabled:cursor-not-allowed
+                                       transition-all duration-200 active:scale-95"
+                        >
+                            {segundaOpcionLoading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    <span>Procesando...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span>Ejecutar Segunda Opción</span>
+                                </>
+                            )}
+                        </button>
+                    )}
 
                     <span className="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 font-medium">
                         Auditoría: Activa
@@ -545,19 +565,21 @@ const DashboardAdmin = (props) => {
                     <h3 className="text-xl font-bold mb-6">Módulos Administrativos y de Reporte</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <button 
-                            onClick={() => props.onNavigate && props.onNavigate('reportes')} 
-                            className="p-6 rounded-2xl border border-slate-800 hover:border-blue-500 bg-slate-950 flex flex-col justify-between h-40 transition-all duration-200 hover:-translate-y-1 w-full text-left"
-                        >
-                            <div>
-                                <h4 className="font-bold text-white text-base">Fiscalización de Reportes</h4>
-                                <p className="text-xs text-slate-400 mt-2">Acceso a la central de fiscalización académica con filtrado en tiempo real.</p>
-                            </div>
-                            <span className="text-xs text-blue-400 font-semibold flex items-center gap-1">
-                                Ir al módulo
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
-                            </span>
-                        </button>
+                        {(localStorage.getItem('user_rol') !== '2' && localStorage.getItem('user_rol') !== 'Docente') && (
+                            <button 
+                                onClick={() => props.onNavigate && props.onNavigate('reportes')} 
+                                className="p-6 rounded-2xl border border-slate-800 hover:border-blue-500 bg-slate-950 flex flex-col justify-between h-40 transition-all duration-200 hover:-translate-y-1 w-full text-left"
+                            >
+                                <div>
+                                    <h4 className="font-bold text-white text-base">Fiscalización de Reportes</h4>
+                                    <p className="text-xs text-slate-400 mt-2">Acceso a la central de fiscalización académica con filtrado en tiempo real.</p>
+                                </div>
+                                <span className="text-xs text-blue-400 font-semibold flex items-center gap-1">
+                                    Ir al módulo
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                                </span>
+                            </button>
+                        )}
  
                         <button 
                             onClick={() => props.onNavigate && props.onNavigate('notas')} 
@@ -573,19 +595,21 @@ const DashboardAdmin = (props) => {
                             </span>
                         </button>
  
-                        <button 
-                            onClick={() => props.onNavigate && props.onNavigate('inscripcion')} 
-                            className="p-6 rounded-2xl border border-slate-800 hover:border-purple-500 bg-slate-950 flex flex-col justify-between h-40 transition-all duration-200 hover:-translate-y-1 w-full text-left"
-                        >
-                            <div>
-                                <h4 className="font-bold text-white text-base">Registro de Postulantes</h4>
-                                <p className="text-xs text-slate-400 mt-2">Formulario de autoinscripción externa para los nuevos alumnos del CUP.</p>
-                            </div>
-                            <span className="text-xs text-purple-400 font-semibold flex items-center gap-1">
-                                Ir al módulo
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
-                            </span>
-                        </button>
+                        {(localStorage.getItem('user_rol') !== '2' && localStorage.getItem('user_rol') !== 'Docente') && (
+                            <button 
+                                onClick={() => props.onNavigate && props.onNavigate('inscripcion')} 
+                                className="p-6 rounded-2xl border border-slate-800 hover:border-purple-500 bg-slate-950 flex flex-col justify-between h-40 transition-all duration-200 hover:-translate-y-1 w-full text-left"
+                            >
+                                <div>
+                                    <h4 className="font-bold text-white text-base">Registro de Postulantes</h4>
+                                    <p className="text-xs text-slate-400 mt-2">Formulario de autoinscripción externa para los nuevos alumnos del CUP.</p>
+                                </div>
+                                <span className="text-xs text-purple-400 font-semibold flex items-center gap-1">
+                                    Ir al módulo
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

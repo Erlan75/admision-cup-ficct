@@ -56,7 +56,7 @@ const NoteInput = ({ value, onChange, disabled }) => (
         step="0.01"
         value={value}
         onChange={onChange}
-        disabled={disabled}
+        disabled={disabled || localStorage.getItem('user_rol') === '4' || localStorage.getItem('user_rol') === 'Autoridad' || localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador'}
         placeholder="—"
         className="w-20 px-2 py-1.5 text-center text-sm rounded-lg border border-slate-700
                    bg-slate-950 text-white placeholder-slate-600
@@ -92,7 +92,15 @@ const RegistroNotas = (props) => {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    setGrupos(data.grupos ?? []);
+                    let list = data.grupos ?? [];
+                    const userRol = localStorage.getItem('user_rol');
+                    const userName = localStorage.getItem('user_name');
+                    if (userRol === '2' || userRol === 'Docente') {
+                        list = list.filter(g => 
+                            g.docente && g.docente.usuario && g.docente.usuario.full_name === userName
+                        );
+                    }
+                    setGrupos(list);
                 }
             } catch {
                 // Si falla, la planilla simplemente queda vacía
@@ -191,7 +199,7 @@ const RegistroNotas = (props) => {
                 setAlert({
                     type:    'success',
                     mensaje: data.mensaje ?? 'Acta guardada correctamente.',
-                    detalle: 'Los promedios ponderados y estados de aprobación fueron calculados por el trigger trg_01_calcular_nota de PostgreSQL.',
+                    detalle: 'Los promedios ponderados y estados de aprobación fueron consolidados con éxito por el sistema.',
                 });
             } else {
                 setAlert({
@@ -230,14 +238,13 @@ const RegistroNotas = (props) => {
                 <div className="max-w-screen-xl mx-auto mb-6">
                     <button
                         onClick={() => props.onNavigate('dashboard')}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700
-                                   text-slate-300 text-sm font-semibold rounded-xl border border-slate-700
+                        className="inline-flex items-center justify-center w-10 h-10 bg-slate-800 hover:bg-slate-700
+                                   text-slate-300 rounded-full border border-slate-700
                                    transition duration-200 shadow-md"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
-                        Volver al Panel
                     </button>
                 </div>
             )}
@@ -248,16 +255,11 @@ const RegistroNotas = (props) => {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4
                                 border-b border-slate-800 pb-6">
                     <div>
-                        <span className="px-3 py-1 text-xs font-semibold text-indigo-400 bg-indigo-900/30
-                                         rounded-full uppercase tracking-wider">
-                            CU-12 / CU-13 — Módulo Académico
-                        </span>
                         <h1 className="text-3xl font-extrabold tracking-tight mt-3">
                             Planilla de Actas de Calificaciones
                         </h1>
                         <p className="text-slate-400 text-sm mt-1">
-                            Registro masivo de notas por grupo/aula. Los promedios son calculados automáticamente
-                            por el trigger <code className="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded text-xs">trg_01_calcular_nota</code> de PostgreSQL.
+                            Registro masivo de calificaciones por grupo y aula. Los promedios ponderados son consolidados de forma automatizada por el sistema.
                         </p>
                     </div>
 
@@ -333,7 +335,7 @@ const RegistroNotas = (props) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                       d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                             </svg>
-                            No hay grupos con inscritos. Ejecuta primero la Distribución Áulica (CU-10).
+                            No hay grupos con inscritos. Ejecuta primero la Distribución Áulica.
                         </div>
                     ) : (
                         <select
@@ -374,7 +376,7 @@ const RegistroNotas = (props) => {
                             <button
                                 id="btn-guardar-acta"
                                 onClick={handleGuardarActa}
-                                disabled={saving || filasOrdenadas.length === 0}
+                                disabled={saving || filasOrdenadas.length === 0 || localStorage.getItem('user_rol') === '4' || localStorage.getItem('user_rol') === 'Autoridad' || localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador'}
                                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold
                                            bg-gradient-to-r from-indigo-600 to-violet-600
                                            hover:from-indigo-500 hover:to-violet-500
@@ -529,8 +531,8 @@ const RegistroNotas = (props) => {
                         <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/30
                                         flex flex-wrap items-center gap-4 text-[10px] text-slate-600">
                             <span>
-                                <span className="text-indigo-400 font-bold">Nota Final (oficial)</span> — calculada por
-                                el trigger de PostgreSQL tras guardar.
+                                <span className="text-indigo-400 font-bold">Nota Final (oficial)</span> — consolidada
+                                por el sistema tras guardar.
                             </span>
                             <span>
                                 <span className="text-slate-500 font-bold">~Preview</span> — estimación local

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
 const PanelReportes = (props) => {
-    const [mainTab, setMainTab] = useState('listados'); // 'listados' | 'metricas'
+    const [mainTab, setMainTab] = useState('listados'); // 'listados' | 'metricas' | 'bitacora'
     const [subTabListados, setSubTabListados] = useState('general'); // 'general' | 'aprobados' | 'reprobados'
     
     const [postulantes, setPostulantes] = useState([]);
     const [estadisticas, setEstadisticas] = useState(null);
     const [rendimiento, setRendimiento] = useState([]);
+    const [logsBitacora, setLogsBitacora] = useState([]);
     
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -169,6 +170,14 @@ const PanelReportes = (props) => {
                     } else {
                         setErrorMsg('Error al recuperar las métricas y estadísticas.');
                     }
+                } else if (mainTab === 'bitacora') {
+                    const response = await fetch('/api/reportes/bitacora', { method: 'GET', headers });
+                    if (response.ok) {
+                        const data = await response.json();
+                        setLogsBitacora(data);
+                    } else {
+                        setErrorMsg('Error al recuperar los logs de auditoría.');
+                    }
                 }
             } catch (error) {
                 setErrorMsg('Error de red al conectar con el servidor.');
@@ -199,150 +208,166 @@ const PanelReportes = (props) => {
 
     return (
         <div className="min-h-screen bg-slate-950 text-white p-6 sm:p-10 print:bg-white print:text-black print:p-0">
+            <style>{`
+                @media print {
+                    /* Forzar a que el contenedor principal de la tabla y sus filas tengan height: auto y overflow: visible */
+                    body, html, #root, .min-h-screen, .max-w-7xl, table, tbody, tr, td, th, div {
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    /* Evitar saltos de página dentro de las filas de la tabla */
+                    tr {
+                        page-break-inside: avoid !important;
+                    }
+                }
+            `}</style>
             <div className="max-w-7xl mx-auto space-y-8">
+                
+                {/* ── Botón Volver ── */}
+                {props.onNavigate && (
+                    <div className="print:hidden">
+                        <button
+                            onClick={() => props.onNavigate('dashboard')}
+                            className="inline-flex items-center justify-center w-10 h-10 bg-slate-800 hover:bg-slate-700
+                                       text-slate-300 rounded-full border border-slate-700
+                                       transition duration-200 shadow-md"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
                 
                 {/* Cabecera (Oculta en impresión excepto título) */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 print:border-black pb-6 gap-4">
                     <div className="flex flex-col gap-2">
-                        <div className="print:hidden">
-                            <span className="px-3 py-1 text-xs font-semibold text-emerald-400 bg-emerald-900/30 rounded-full uppercase tracking-wider">
-                                CU-16: Módulo de Reportes
-                            </span>
-                        </div>
+
                         <h1 className="text-3xl font-extrabold tracking-tight mt-1 print:text-black">Panel Ejecutivo de Reportes</h1>
                         <p className="text-slate-400 text-sm print:text-slate-700">Sistema de Admisión CUP - FICCT (UAGRM)</p>
                     </div>
                     
                     <div className="flex items-center gap-4 print:hidden">
                         <button 
-                            onClick={handlePrint}
+                            onClick={() => window.print()}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition duration-200 border border-slate-700 flex items-center gap-2"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                             Exportar Acta / Imprimir
                         </button>
-
-                        {props.onNavigate && (
-                            <button 
-                                onClick={() => props.onNavigate('dashboard')}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition duration-200"
-                            >
-                                Volver al Dashboard
-                            </button>
-                        )}
                     </div>
                 </div>
 
                 {/* ══════════════════════════════════════════════════════════ */}
                 {/* TARJETAS DE ADMINISTRACIÓN — Ciclo 1 (CU-03 / CU-07)    */}
                 {/* ══════════════════════════════════════════════════════════ */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
+                {(localStorage.getItem('user_rol') === '1' || localStorage.getItem('user_rol') === 'Administrador') && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
 
-                    {/* ── Tarjeta CU-03: Carga Masiva de Postulantes ── */}
-                    <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl relative overflow-hidden group hover:border-blue-500/50 transition-all duration-300">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 pointer-events-none"></div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
+                        {/* ── Tarjeta CU-03: Carga Masiva de Postulantes ── */}
+                        <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl relative overflow-hidden group hover:border-blue-500/50 transition-all duration-300">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 pointer-events-none"></div>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-white">Carga Masiva de Postulantes</h3>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-white">Carga Masiva de Postulantes</h3>
-                                <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">CU-03</span>
+                            <p className="text-xs text-slate-400 mb-4">Suba un archivo <strong className="text-slate-300">.csv</strong> o <strong className="text-slate-300">.xlsx</strong> con los datos del lote de postulantes para registro masivo automatizado.</p>
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                <input
+                                    id="input-csv-lote"
+                                    type="file"
+                                    accept=".csv,.txt,.xlsx,.xls"
+                                    onChange={(e) => setArchivoCSV(e.target.files[0] || null)}
+                                    className="flex-1 text-xs text-slate-300 file:mr-3 file:py-2 file:px-4
+                                               file:rounded-lg file:border-0 file:text-xs file:font-bold
+                                               file:bg-slate-800 file:text-blue-400 file:cursor-pointer
+                                               hover:file:bg-slate-700 transition-all
+                                               bg-slate-950 border border-slate-800 rounded-xl px-3 py-2"
+                                />
+                                <button
+                                    id="btn-cargar-lote-csv"
+                                    onClick={handleCargaMasiva}
+                                    disabled={cargaMasivaLoading}
+                                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold
+                                               bg-gradient-to-r from-blue-600 to-cyan-600
+                                               hover:from-blue-500 hover:to-cyan-500
+                                               shadow-lg shadow-blue-900/40 hover:shadow-blue-700/50
+                                               disabled:opacity-60 disabled:cursor-not-allowed
+                                               transition-all duration-200 active:scale-95 whitespace-nowrap"
+                                >
+                                    {cargaMasivaLoading ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            <span>Procesando...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            </svg>
+                                            <span>Procesar Archivo de Lotes (CSV/Excel)</span>
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
-                        <p className="text-xs text-slate-400 mb-4">Suba un archivo <strong className="text-slate-300">.csv</strong> o <strong className="text-slate-300">.xlsx</strong> con los datos del lote de postulantes para registro masivo automatizado.</p>
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                            <input
-                                id="input-csv-lote"
-                                type="file"
-                                accept=".csv,.txt,.xlsx,.xls"
-                                onChange={(e) => setArchivoCSV(e.target.files[0] || null)}
-                                className="flex-1 text-xs text-slate-300 file:mr-3 file:py-2 file:px-4
-                                           file:rounded-lg file:border-0 file:text-xs file:font-bold
-                                           file:bg-slate-800 file:text-blue-400 file:cursor-pointer
-                                           hover:file:bg-slate-700 transition-all
-                                           bg-slate-950 border border-slate-800 rounded-xl px-3 py-2"
-                            />
+
+                        {/* ── Tarjeta CU-07: Simulación de Pasarela de Pagos QR ── */}
+                        <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl relative overflow-hidden group hover:border-purple-500/50 transition-all duration-300">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/10 pointer-events-none"></div>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-white">Pasarela de Pagos QR</h3>
+                                </div>
+                            </div>
+                            <p className="text-xs text-slate-400 mb-4">Simula la verificación asíncrona de pagos del proveedor QR externo. Confirma automáticamente todos los postulantes con pago <strong className="text-slate-300">pendiente</strong>.</p>
                             <button
-                                id="btn-cargar-lote-csv"
-                                onClick={handleCargaMasiva}
-                                disabled={cargaMasivaLoading}
-                                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold
-                                           bg-gradient-to-r from-blue-600 to-cyan-600
-                                           hover:from-blue-500 hover:to-cyan-500
-                                           shadow-lg shadow-blue-900/40 hover:shadow-blue-700/50
+                                id="btn-pasarela-qr"
+                                onClick={handlePasarelaQR}
+                                disabled={pasarelaLoading}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold
+                                           bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600
+                                           hover:from-purple-500 hover:via-violet-500 hover:to-fuchsia-500
+                                           shadow-lg shadow-purple-900/40 hover:shadow-purple-700/50
                                            disabled:opacity-60 disabled:cursor-not-allowed
-                                           transition-all duration-200 active:scale-95 whitespace-nowrap"
+                                           transition-all duration-200 active:scale-95"
                             >
-                                {cargaMasivaLoading ? (
+                                {pasarelaLoading ? (
                                     <>
                                         <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
-                                        <span>Procesando...</span>
+                                        <span>Verificando...</span>
                                     </>
                                 ) : (
                                     <>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                         </svg>
-                                        <span>Procesar Archivo de Lotes (CSV/Excel)</span>
+                                        <span>Verificar Pasarela de Pagos QR</span>
                                     </>
                                 )}
                             </button>
                         </div>
                     </div>
-
-                    {/* ── Tarjeta CU-07: Simulación de Pasarela de Pagos QR ── */}
-                    <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl relative overflow-hidden group hover:border-purple-500/50 transition-all duration-300">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/10 pointer-events-none"></div>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-white">Pasarela de Pagos QR</h3>
-                                <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider">CU-07 — Simulación</span>
-                            </div>
-                        </div>
-                        <p className="text-xs text-slate-400 mb-4">Simula la verificación asíncrona de pagos del proveedor QR externo. Confirma automáticamente todos los postulantes con pago <strong className="text-slate-300">pendiente</strong>.</p>
-                        <button
-                            id="btn-pasarela-qr"
-                            onClick={handlePasarelaQR}
-                            disabled={pasarelaLoading}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold
-                                       bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600
-                                       hover:from-purple-500 hover:via-violet-500 hover:to-fuchsia-500
-                                       shadow-lg shadow-purple-900/40 hover:shadow-purple-700/50
-                                       disabled:opacity-60 disabled:cursor-not-allowed
-                                       transition-all duration-200 active:scale-95"
-                        >
-                            {pasarelaLoading ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                    </svg>
-                                    <span>Verificando...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                    </svg>
-                                    <span>Verificar Pasarela de Pagos QR</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
+                )}
 
                 {/* ── Alertas CU-03 / CU-07 ── */}
                 {cargaMasivaAlert && (
@@ -419,6 +444,14 @@ const PanelReportes = (props) => {
                     >
                         Métricas & Estadísticas CUP
                     </button>
+                    <button
+                        onClick={() => setMainTab('bitacora')}
+                        className={`px-5 py-3 text-sm font-bold border-b-2 transition-all duration-200 ${
+                            mainTab === 'bitacora' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200'
+                        }`}
+                    >
+                        Bitácora de Auditoría del Sistema
+                    </button>
                 </div>
 
                 {/* Error Alert */}
@@ -483,29 +516,33 @@ const PanelReportes = (props) => {
                             Acta Oficial de {subTabListados === 'general' ? 'Todos los Postulantes' : subTabListados === 'aprobados' ? 'Postulantes Aprobados' : 'Postulantes Reprobados'}
                         </div>
 
-                        {/* Tabla de Listados */}
-                        <div className="bg-slate-900 print:bg-white border border-slate-800 print:border-black rounded-2xl overflow-hidden shadow-xl print:shadow-none">
+                        {/* Tabla de Listados (Pantalla: Paginada) */}
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl print:hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse print:text-black">
+                                <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-slate-800 print:border-black bg-slate-950 print:bg-gray-100 text-slate-400 print:text-black text-xs font-bold uppercase tracking-wider">
+                                        <tr className="border-b border-slate-800 bg-slate-950 text-slate-400 text-xs font-bold uppercase tracking-wider">
                                             <th className="px-6 py-4">CI</th>
                                             <th className="px-6 py-4">Nombre Completo</th>
                                             <th className="px-6 py-4">Carrera Asignada (Estado)</th>
                                             <th className="px-6 py-4 text-center">Promedio</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-800 print:divide-black text-sm">
+                                    <tbody className="divide-y divide-slate-800 text-sm">
                                         {currentPostulantes.map((p) => {
                                             const inscripcion = p.inscripciones?.[0];
                                             const calificacion = inscripcion?.calificacion;
-                                            const promedio = calificacion ? parseFloat(calificacion.promedio_ponderado).toFixed(2) : 'S/N';
+                                            const promedio = p.promedio_calculado !== undefined && p.promedio_calculado !== null
+                                                ? parseFloat(p.promedio_calculado).toFixed(2)
+                                                : (calificacion ? parseFloat(calificacion.promedio_ponderado).toFixed(2) : 'S/N');
                                             return (
                                                 <tr key={p.id} className="hover:bg-slate-800/30 transition duration-150">
                                                     <td className="px-6 py-3 font-semibold">{p.ci}</td>
                                                     <td className="px-6 py-3 font-bold">{p.nombres} {p.apellidos}</td>
                                                     <td className="px-6 py-3">
-                                                        {p.estado_final === 'Admitido' ? p.carrera_opcion1?.nombre_carrera : p.estado_final}
+                                                        {p.estado_final === 'Admitido' 
+                                                            ? `Admitido - ${(p.carrera_opcion1?.nombre_carrera || '').toUpperCase()}` 
+                                                            : p.estado_final}
                                                     </td>
                                                     <td className="px-6 py-3 text-center font-bold">
                                                         {promedio}
@@ -515,6 +552,48 @@ const PanelReportes = (props) => {
                                         })}
                                         {currentPostulantes.length === 0 && (
                                             <tr><td colSpan="4" className="text-center py-10 text-slate-500">No hay registros para mostrar.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Tabla de Listados (Impresión: Todos los registros) */}
+                        <div className="hidden print:block bg-white border border-black rounded-none shadow-none text-black">
+                            <div className="overflow-visible">
+                                <table className="w-full text-left border-collapse text-black">
+                                    <thead>
+                                        <tr className="border-b border-black bg-gray-100 text-black text-xs font-bold uppercase tracking-wider">
+                                            <th className="px-6 py-4">CI</th>
+                                            <th className="px-6 py-4">Nombre Completo</th>
+                                            <th className="px-6 py-4">Carrera Asignada (Estado)</th>
+                                            <th className="px-6 py-4 text-center">Promedio</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-black text-sm text-black">
+                                        {filteredPostulantes.map((p) => {
+                                            const inscripcion = p.inscripciones?.[0];
+                                            const calificacion = inscripcion?.calificacion;
+                                            const promedio = p.promedio_calculado !== undefined && p.promedio_calculado !== null
+                                                ? parseFloat(p.promedio_calculado).toFixed(2)
+                                                : (calificacion ? parseFloat(calificacion.promedio_ponderado).toFixed(2) : 'S/N');
+                                            return (
+                                                <tr key={p.id} className="border-b border-black">
+                                                    <td className="px-6 py-3 font-semibold">{p.ci}</td>
+                                                    <td className="px-6 py-3 font-bold">{p.nombres} {p.apellidos}</td>
+                                                    <td className="px-6 py-3">
+                                                        {p.estado_final === 'Admitido' 
+                                                            ? `Admitido - ${(p.carrera_opcion1?.nombre_carrera || '').toUpperCase()}` 
+                                                            : p.estado_final}
+                                                    </td>
+                                                    <td className="px-6 py-3 text-center font-bold">
+                                                        {promedio}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {filteredPostulantes.length === 0 && (
+                                            <tr><td colSpan="4" className="text-center py-10 text-black">No hay registros para mostrar.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -637,6 +716,70 @@ const PanelReportes = (props) => {
                         <div className="hidden print:block mt-20 text-center">
                             <div className="inline-block border-t border-black w-64 pt-2">
                                 Firma Autorizada - Administración FICCT
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 3: BITÁCORA DE AUDITORÍA */}
+                {!loading && mainTab === 'bitacora' && (
+                    <div className="space-y-6">
+                        <div className="hidden print:block text-xl font-bold border-b border-black pb-2 mb-4">
+                            Bitácora de Auditoría del Sistema
+                        </div>
+                        <div className="bg-slate-900 print:bg-white border border-slate-800 print:border-black rounded-2xl overflow-hidden shadow-xl">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse print:text-black">
+                                    <thead>
+                                        <tr className="border-b border-slate-800 print:border-black bg-slate-950 print:bg-gray-100 text-slate-400 print:text-black text-xs font-bold uppercase tracking-wider">
+                                            <th className="px-6 py-4 w-16">ID</th>
+                                            <th className="px-6 py-4">Usuario / Ejecutor</th>
+                                            <th className="px-6 py-4">Acción</th>
+                                            <th className="px-6 py-4">Tabla</th>
+                                            <th className="px-6 py-4">Dirección IP</th>
+                                            <th className="px-6 py-4">Fecha</th>
+                                            <th className="px-6 py-4">Datos Modificados (JSON)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-800 print:divide-black text-sm">
+                                        {logsBitacora.map((log) => (
+                                            <tr key={log.id} className="hover:bg-slate-800/20 transition duration-150">
+                                                <td className="px-6 py-4 font-mono text-slate-500">{log.id}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className="font-bold text-white print:text-black">
+                                                        {log.usuario ?? 'Sistema (Trigger)'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 font-mono">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase ${
+                                                        log.accion === 'INSERT' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60' :
+                                                        log.accion === 'UPDATE' ? 'bg-amber-950/60 text-amber-400 border border-amber-800/60' :
+                                                        'bg-rose-950/60 text-rose-400 border border-rose-800/60'
+                                                    }`}>
+                                                        {log.accion}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 font-semibold text-slate-300 print:text-black">{log.tabla_afectada}</td>
+                                                <td className="px-6 py-4 font-mono text-slate-400 print:text-black">{log.ip_address}</td>
+                                                <td className="px-6 py-4 text-xs text-slate-400 print:text-black">
+                                                    {new Date(log.created_at).toLocaleString('es-ES', { timeZone: 'UTC' })}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <pre className="text-[10px] bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-indigo-300 overflow-x-auto max-w-xs max-h-24 overflow-y-auto font-mono">
+                                                        {JSON.stringify(typeof log.v_data_json === 'string' ? JSON.parse(log.v_data_json) : log.v_data_json, null, 2)}
+                                                    </pre>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {logsBitacora.length === 0 && (
+                                            <tr>
+                                                <td colSpan="7" className="text-center py-12 text-slate-500">
+                                                    No se han registrado eventos de auditoría en la bitácora todavía.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

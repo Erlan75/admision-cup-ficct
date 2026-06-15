@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Postulante;
+use App\Models\Pago;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -280,11 +281,10 @@ class PostulanteController extends Controller
     public function simularPasarelaQR(): JsonResponse
     {
         try {
-            $actualizados = Postulante::where('estado_pago', 'Pendiente')
+            $actualizados = Pago::where('estado_pago', 'Pendiente')
                 ->update([
-                    'estado_pago'       => 'Pagado',
-                    'pago_confirmado'   => true,
-                    'fecha_pago'        => now(),
+                    'estado_pago' => 'Pagado',
+                    'fecha_pago'  => now(),
                 ]);
 
             return response()->json([
@@ -297,5 +297,68 @@ class PostulanteController extends Controller
                 'detalle' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Obtener el historial de intentos (períodos académicos) del postulante autenticado.
+     */
+    public function getPeriodosPostulante(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $postulante = Postulante::where('user_id', $user->id)->first();
+        
+        if (!$postulante) {
+            return response()->json(["error" => "Postulante no encontrado"], 404);
+        }
+        
+        $periodos = DB::table('inscripciones')
+            ->where('postulante_id', $postulante->id)
+            ->distinct()
+            ->pluck('periodo_academico');
+            
+        return response()->json([
+            'periodos' => $periodos
+        ], 200);
+    }
+
+    /**
+     * Obtener notas, materias y promedios correspondientes a un período académico específico.
+     */
+    public function getNotasPostulante(Request $request, string $periodo): JsonResponse
+    {
+        $user = $request->user();
+        $postulante = Postulante::where('user_id', $user->id)->first();
+        
+        if (!$postulante) {
+            return response()->json(["error" => "Postulante no encontrado"], 404);
+        }
+        
+        $notas = DB::table('inscripciones as i')
+            ->join('grupos as g', 'i.grupo_id', '=', 'g.id')
+            ->join('materias as m', 'g.materia_id', '=', 'm.id')
+            ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+            ->where('i.postulante_id', $postulante->id)
+            ->where('i.periodo_academico', $periodo)
+            ->select([
+                'm.nombre as materia',
+                'm.sigla',
+                'g.nombre_paralelo',
+                'c.parcial_1',
+                'c.parcial_2',
+                'c.examen_final',
+                'c.promedio_ponderado',
+                'c.estado_aprobacion'
+            ])
+            ->get();
+            
+        return response()->json([
+            'notas' => $notas,
+            'postulante' => [
+                'nombres' => $postulante->nombres,
+                'apellidos' => $postulante->apellidos,
+                'ci' => $postulante->ci,
+                'estado_final' => $postulante->estado_final
+            ]
+        ], 200);
     }
 }

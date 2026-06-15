@@ -1,0 +1,69 @@
+ci,nombres,apellidos,fecha_nacimiento,sexo,direccion,telefono,email,colegio_procedencia,ciudad,opcion1_carrera_id,opcion2_carrera_id
+9876543-SC,Erlan Gaston,Garcia Mamani,2002-05-20,M,Av. Busch 3ro Anillo,78945612,erlan.garcia@gmail.com,Colegio Nacional,Santa Cruz,2,1
+1234567-SC,Juan Marcelo,Perez Choque,2003-08-14,M,Plan 3000 Calle 4,76543210,juan.perez@gmail.com,Colegio Bellas Artes,Santa Cruz,2,3
+4567890-SC,Ana Maria,Roca Suarez,2004-01-30,F,Av. Banzer Km 5,71122334,ana.roca@gmail.com,Colegio Soria Galvarro,Santa Cruz,1,2
+1000001-SC,Carlos,Alvarez Pinto,2003-01-01,M,Central,70000001,carlos.1@gmail.com,Colegio Gabriel,Santa Cruz,1,2
+1000002-SC,Maria,Benitez Rios,2004-02-02,F,Sur,70000002,maria.2@gmail.com,Colegio Baptista,Santa Cruz,2,3
+1000003-SC,Jorge,Castro Ortiz,2003-03-03,M,Norte,70000003,jorge.3@gmail.com,Colegio Cambridge,Santa Cruz,3,4
+1000004-SC,Laura,Duran Vaca,2004-04-04,F,Este,70000004,laura.4@gmail.com,Colegio Eagle,Santa Cruz,4,1
+1000005-SC,Pedro,Espinoza Luna,2003-05-05,M,Oeste,70000005,pedro.5@gmail.com,Colegio Saint George,Santa Cruz,1,3
+1000006-SC,Elena,Flores Soliz,2004-06-06,F,Central,70000006,elena.6@gmail.com,Colegio Franco,Santa Cruz,2,4
+1000007-SC,Ramiro,Gomez Arteaga,2003-07-07,M,Sur,70000007,ramiro.7@gmail.com,Colegio La Salle,Santa Cruz,3,1
+1000008-SC,Silvia,Heredia Paz,2004-08-08,F,Norte,70000008,silvia.8@gmail.com,Colegio Uboldi,Santa Cruz,4,2
+1000009-SC,Hugo,Ibanez Justiniano,2003-09-09,M,Este,70000009,hugo.9@gmail.com,Colegio IPC,Santa Cruz,1,4
+1000010-SC,Natalia,Juarez Melgar,2004-10-10,F,Oeste,70000010,natalia.10@gmail.com,Colegio Berea,Santa Cruz,2,1
+1000011-SC,Oscar,Lopez Cuellar,2003-11-11,M,Central,70000011,oscar.11@gmail.com,Colegio Marista,Santa Cruz,3,2
+1000012-SC,Patricia,Mendoza Rojas,2004-12-12,F,Sur,70000012,patricia.12@gmail.com,Colegio Cardenal,Santa Cruz,4,3
+1000013-SC,Raul,Nunez Suarez,2003-01-13,M,Norte,70000013,raul.13@gmail.com,Colegio San Agustin,Santa Cruz,1,2
+1000014-SC,Sonia,Orellana Torrico,2004-02-14,F,Este,70000014,sonia.14@gmail.com,Colegio Don Bosco,Santa Cruz,2,3
+1000015-SC,Tomas,Paredes Vargas,2003-03-15,M,Oeste,70000015,tomas.15@gmail.com,Colegio Fe y Alegria,Santa Cruz,3,4
+1000016-SC,Victor,Quiroga Villarroel,2004-04-16,F,Central,70000016,victor.16@gmail.com,Colegio de la Sierra,Santa Cruz,4,1
+1000017-SC,Walter,Rios Zeballos,2003-05-17,M,Sur,70000017,walter.17@gmail.com,Colegio Americano,Santa Cruz,1,3
+1000018-SC,Zulma,Sosa Antelo,2004-06-18,F,Norte,70000018,zulma.18@gmail.com,Colegio Cristiano,Santa Cruz,2,4
+1000019-SC,Alejandro,Tapia Baca,2003-07-19,M,Este,70000019,alejandro.19@gmail.com,Colegio Evangelico,Santa Cruz,3,1
+1000020-SC,Beatriz,Ugarte Calle,2004-08-20,F,Oeste,70000020,beatriz.20@gmail.com,Colegio Adventista,Santa Cruz,4,2
+1000021-SC,Cesar,Vargas Davila,2003-09-21,M,Central,70000021,cesar.21@gmail.com,Colegio Militar,Santa Cruz,1,4
+1000022-SC,Diana,Zambrana Erazo,2004-10-22,F,Sur,70000022,diana.22@gmail.com,Colegio Policial,Santa Cruz,2,1
+1000023-SC,Eduardo,Arce Fuentes,2003-11-23,M,Norte,70000023,eduardo.23@gmail.com,Colegio Aleman,Santa Cruz,3,2
+1000024-SC,Fabiola,Blanco Garzon,2004-12-24,F,Este,70000024,fabiola.24@gmail.com,Colegio Belt,Santa Cruz,4,3
+1000025-SC,Gabriel,Chavez Hurtado,2003-01-25,M,Oeste,70000025,gabriel.25@gmail.com,Colegio支部,Santa Cruz,1,2
+1000026-SC,Ines,Delgado Iriarte,2004-02-26,F,Central,70000026,ines.26@gmail.com,Colegio Britanico,Santa Cruz,2,3
+1000027-SC,Javier,Flores Jordan,2003-03-27,M,Sur,70000027,javier.27@gmail.com,Colegio Frances,Santa Cruz,3,4
+1000028-SC,Karla,Guzman Lanza,2004-04-28,F,Norte,70000028,karla.28@gmail.com,Colegio Espanol,Santa Cruz,4,1
+1000029-SC,Luis,Maldonado Miranda,2003-05-29,M,Este,70000029,luis.29@gmail.com,Colegio Ruso,Santa Cruz,1,3
+1000030-SC,Monica,Navarro Nina,2004-06-30,F,Oeste,70000030,monica.30@gmail.com,Colegio Italiano,Santa Cruz,2,4
+1000031-SC,Omar,Oporto Prado,2003-07-01,M,Central,70000031,omar.31@gmail.com,Colegio Japones,Santa Cruz,3,1
+1000032-SC,Paola,Quintana Quiroga,2004-08-02,F,Sur,70000032,paola.32@gmail.com,Colegio Chino,Santa Cruz,4,2
+1000033-SC,Ruben,Ribera Roca,2003-09-03,M,Norte,70000033,ruben.33@gmail.com,Colegio Suizo,Santa Cruz,1,4
+1000034-SC,Sara,Salazar Saavedra,2004-10-04,F,Este,70000034,sara.34@gmail.com,Colegio Belga,Santa Cruz,2,1
+1000035-SC,Victor,Terceros Tellez,2003-11-05,M,Oeste,70000035,victor.35@gmail.com,Colegio Sueco,Santa Cruz,3,2
+1000036-SC,Vanessa,Uzeda Urioste,2004-12-06,F,Central,70000036,vanessa.36@gmail.com,Colegio Holandes,Santa Cruz,4,3
+1000037-SC,Wilson,Vaca Vera,2003-01-07,M,Sur,70000037,wilson.37@gmail.com,Colegio Danes,Santa Cruz,1,2
+1000038-SC,Yolanda,Zarate Zenteno,2004-02-08,F,Norte,70000038,yolanda.38@gmail.com,Colegio Noruego,Santa Cruz,2,3
+1000039-SC,Adrian,Antezana Alarcon,2003-03-09,M,Este,70000039,adrian.39@gmail.com,Colegio Finlandes,Santa Cruz,3,4
+1000040-SC,Blanca,Bustamante Bravo,2004-04-10,F,Oeste,70000040,blanca.40@gmail.com,Colegio Canadiense,Santa Cruz,4,1
+1000041-SC,Claudio,Camacho Castro,2003-05-11,M,Central,70000041,claudio.41@gmail.com,Colegio Cubano,Santa Cruz,1,3
+1000042-SC,Dora,Dorado Diaz,2004-06-12,F,Sur,70000042,dora.42@gmail.com,Colegio Chileno,Santa Cruz,2,4
+1000043-SC,Enrique,Encinas Escalante,2003-07-13,M,Norte,70000043,enrique.43@gmail.com,Colegio Peruano,Santa Cruz,3,1
+1000044-SC,Flavia,Fuentes Frias,2004-08-14,F,Este,70000044,flavia.44@gmail.com,Colegio Brasilero,Santa Cruz,4,2
+1000045-SC,Gonzalo,Guzman Gutierrez,2003-09-15,M,Oeste,70000045,gonzalo.45@gmail.com,Colegio Argentino,Santa Cruz,1,4
+1000046-SC,Hilda,Herrera Hoyos,2004-10-16,F,Central,70000046,hilda.46@gmail.com,Colegio Uruguayo,Santa Cruz,2,1
+1000047-SC,Ivan,Illanes Iriarte,2003-11-17,M,Sur,70000047,ivan.47@gmail.com,Colegio Paraguayo,Santa Cruz,3,2
+1000048-SC,Juana,Jauregui Jimenez,2004-12-18,F,Norte,70000048,juana.48@gmail.com,Colegio Colombiano,Santa Cruz,4,3
+1000049-SC,Kevin,Kohlberg Kusanovic,2003-01-19,M,Este,70000049,kevin.49@gmail.com,Colegio Venezolano,Santa Cruz,1,2
+1000050-SC,Lucia,Lozano Luna,2004-02-20,F,Oeste,70000050,lucia.50@gmail.com,Colegio Ecuatoriano,Santa Cruz,2,3
+1000051-SC,Mario,Mariscal Medina,2003-03-21,M,Central,70000051,mario.51@gmail.com,Colegio Panameno,Santa Cruz,3,4
+1000052-SC,Nora,Navia Nunez,2004-04-22,F,Sur,70000052,nora.52@gmail.com,Colegio Costarricense,Santa Cruz,4,1
+1000053-SC,Orlando,Orellana Osinaga,2003-05-23,M,Norte,70000053,orlando.53@gmail.com,Colegio Hondureno,Santa Cruz,1,3
+1000054-SC,Pilar,Prado Pinto,2004-06-24,F,Este,70000054,pilar.54@gmail.com,Colegio Guatemalteco,Santa Cruz,2,4
+1000055-SC,Quentin,Quiroga Quispe,2003-07-25,M,Oeste,70000055,quentin.55@gmail.com,Colegio Salvadoreno,Santa Cruz,3,1
+1000056-SC,Rosa,Rojas Romero,2004-08-26,F,Central,70000056,rosa.56@gmail.com,Colegio Nicaraguense,Santa Cruz,4,2
+1000057-SC,Sergio,Salas Salazar,2003-09-27,M,Sur,70000057,sergio.57@gmail.com,Colegio Dominico,Santa Cruz,1,4
+1000058-SC,Tania,Toro Torrico,2004-10-28,F,Norte,70000058,tania.58@gmail.com,Colegio Haitiano,Santa Cruz,2,1
+1000059-SC,Ulises,Ugarte Urioste,2003-11-29,M,Este,70000059,ulises.59@gmail.com,Colegio Jamaiquino,Santa Cruz,3,2
+1000060-SC,Viviana,Vaca Valenzuela,2004-12-30,F,Oeste,70000060,viviana.60@gmail.com,Colegio Boricua,Santa Cruz,4,3
+1000061-SC,Wilmer,Zeballos Zuleta,2003-01-31,M,Central,70000061,wilmer.61@gmail.com,Colegio Mexicano,Santa Cruz,1,2
+1000062-SC,Ximena,Xavier Xi,2004-02-28,F,Sur,70000062,ximena.62@gmail.com,Colegio Asiatico,Santa Cruz,2,3
+8888888-SC,Postulante Malo,Falta Nacimiento,,M,Barrio El Paraiso,74445556,sin.fecha@gmail.com,Colegio Berea,Santa Cruz,1,2
+9999999-SC,Postulante Malo,Falta Sexo,2003-11-12,,Urb. Las Palmas,72223334,sin.sexo@gmail.com,Colegio Marista,Santa Cruz,2,4
+7777777-SC,Carlos Hugo,Mendoza Vaca,2004-05-15,M,Villa Primero de Mayo,73334445,carlos@gmail.com,Colegio Pampa,Santa Cruz,99,1

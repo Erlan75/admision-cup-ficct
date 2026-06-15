@@ -39,8 +39,8 @@ BEGIN
         
         RAISE NOTICE 'Postulante % inscrito exitosamente en el grupo %', p_postulante_id, v_grupo_id;
     ELSE
-        -- Lanzar una excepción de negocio en caso de que no haya aulas disponibles
-        RAISE EXCEPTION 'Capacidad excedida: No existen paralelos o aulas con cupos disponibles para la materia %', p_materia_id;
+        -- Retorno limpio en lugar de excepción para evitar interrumpir la transacción
+        RETURN;
     END IF;
 END;
 $$;
@@ -66,7 +66,7 @@ BEGIN
         (COUNT(CASE WHEN c.estado_aprobacion = TRUE THEN 1 END) = 4) AS aprobado, 
         p.estado_final AS estado
     FROM postulantes p
-    LEFT JOIN inscripciones i ON p.id = i.postulante_id
+    LEFT JOIN inscripciones i ON p.id = i.postulante_id AND i.periodo_academico = '2-2026'
     LEFT JOIN calificaciones c ON i.id = c.inscripcion_id
     WHERE p.ci = p_ci
     GROUP BY p.id, p.nombres, p.apellidos, p.estado_final
@@ -104,7 +104,7 @@ DECLARE
     cur_aprobados CURSOR FOR
         SELECT p.id AS postulante_id
         FROM postulantes p
-        JOIN inscripciones i  ON p.id = i.postulante_id
+        JOIN inscripciones i  ON p.id = i.postulante_id AND i.periodo_academico = '2-2026'
         JOIN calificaciones c ON i.id  = c.inscripcion_id
         WHERE p.opcion1_carrera_id = p_carrera_id
           AND p.estado_final NOT IN ('Admitido', 'No Admitido')
@@ -140,6 +140,7 @@ BEGIN
           FROM inscripciones i
           JOIN calificaciones c ON i.id = c.inscripcion_id
           WHERE c.estado_aprobacion = FALSE
+            AND i.periodo_academico = '2-2026'
       );
 
     RAISE NOTICE 'Paso 2 completado: postulantes reprobados marcados como No Admitido.';
@@ -223,7 +224,7 @@ DECLARE
     cur_pendientes CURSOR FOR
         SELECT p.id AS postulante_id, p.opcion2_carrera_id
         FROM   postulantes p
-        JOIN   inscripciones i  ON p.id  = i.postulante_id
+        JOIN   inscripciones i  ON p.id  = i.postulante_id AND i.periodo_academico = '2-2026'
         JOIN   calificaciones c ON i.id  = c.inscripcion_id
         WHERE  p.estado_final        = 'Pendiente Segunda Opción'
         GROUP BY p.id, p.opcion2_carrera_id

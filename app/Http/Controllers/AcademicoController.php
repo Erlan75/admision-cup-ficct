@@ -30,6 +30,33 @@ class AcademicoController extends Controller
      */
     public function registrarNotas(Request $request): JsonResponse
     {
+        if ($request->user()->rol_id == 4) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
+        if ($request->user()->rol_id == 2) {
+            $docente = \App\Models\Docente::where('user_id', $request->user()->id)->first();
+            if (!$docente) {
+                return response()->json(["error" => "No autorizado"], 403);
+            }
+            
+            // Validar que todas las calificaciones pertenecen a inscripciones del docente
+            $calificaciones = $request->input('calificaciones', []);
+            if (is_array($calificaciones) && count($calificaciones) > 0) {
+                $inscripcionIds = collect($calificaciones)->pluck('inscripcion_id')->filter()->unique()->toArray();
+                
+                $unauthorizedExists = \App\Models\Inscripcion::whereIn('id', $inscripcionIds)
+                    ->whereHas('grupo', function ($query) use ($docente) {
+                        $query->where('docente_id', '!=', $docente->id);
+                    })
+                    ->exists();
+                
+                if ($unauthorizedExists) {
+                    return response()->json(["error" => "No autorizado"], 403);
+                }
+            }
+        }
+
         // ── Validación del lote ────────────────────────────────────────────────
         $request->validate([
             'calificaciones'                       => ['required', 'array', 'min:1'],
@@ -59,13 +86,13 @@ class AcademicoController extends Controller
 
                 // Solo actualizar campos que vienen en el payload
                 if (array_key_exists('parcial_1', $item)) {
-                    $calificacion->parcial_1 = $item['parcial_1'];
+                    $calificacion->parcial_1 = $item['parcial_1'] ?? 0.00;
                 }
                 if (array_key_exists('parcial_2', $item)) {
-                    $calificacion->parcial_2 = $item['parcial_2'];
+                    $calificacion->parcial_2 = $item['parcial_2'] ?? 0.00;
                 }
                 if (array_key_exists('examen_final', $item)) {
-                    $calificacion->examen_final = $item['examen_final'];
+                    $calificacion->examen_final = $item['examen_final'] ?? 0.00;
                 }
 
                 // Persistir — el trigger trg_01_calcular_nota se dispara aquí
@@ -107,8 +134,12 @@ class AcademicoController extends Controller
     public function listarGruposConInscritos(): JsonResponse
     {
         $grupos = Grupo::with([
+            'inscripciones' => function ($query) {
+                $query->where('periodo_academico', '2-2026');
+            },
             'inscripciones.postulante',
             'inscripciones.calificacion',
+            'docente.usuario',
         ])->orderBy('nombre_paralelo')->get();
 
         return response()->json([
@@ -126,11 +157,12 @@ class AcademicoController extends Controller
         // 1. Total de inscritos únicos
         $totalInscritos = Inscripcion::distinct('postulante_id')->count('postulante_id');
 
-        // 2. Total de aprobados (alumnos que aprobaron las 4 materias)
         $totalAprobados = DB::table('inscripciones')
             ->join('calificaciones', 'inscripciones.id', '=', 'calificaciones.inscripcion_id')
+            ->join('postulantes as p', 'inscripciones.postulante_id', '=', 'p.id')
             ->where('calificaciones.estado_aprobacion', true)
-            ->groupBy('inscripciones.postulante_id')
+            ->select('p.id')
+            ->groupBy('p.id')
             ->havingRaw('COUNT(calificaciones.id) = 4')
             ->get()
             ->count();
@@ -167,8 +199,12 @@ class AcademicoController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function distribuirPostulantesAulas(): JsonResponse
+    public function distribuirPostulantesAulas(Request $request): JsonResponse
     {
+        if ($request->user()->rol_id != 1) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -182,6 +218,125 @@ class AcademicoController extends Controller
                     'mensaje'    => 'No existen postulantes pendientes de distribución áulica.',
                     'asignados'  => 0,
                 ], 200);
+            }
+
+            // Asegurar que todas las aulas tengan capacidad de exactamente 60 alumnos homogénea
+            DB::table('aulas')->update(['capacidad_fisica' => 60]);
+
+            // Asegurar que todas las materias tengan su Grupo 1 (paralelo inicial) creado
+            $materiasListBase = DB::table('materias')->orderBy('id')->get();
+            $slotsBase = [
+                ['08:00:00', '10:00:00'],
+                ['10:00:00', '12:00:00'],
+                ['12:00:00', '14:00:00'],
+                ['14:00:00', '16:00:00'],
+            ];
+
+            $docentesList = DB::table('docentes')->orderBy('id')->pluck('id')->toArray();
+
+            foreach ($materiasListBase as $key => $materia) {
+                $abrev = 'COMP';
+                if (str_contains(strtolower($materia->nombre), 'mat')) {
+                    $abrev = 'MAT';
+                } elseif (str_contains(strtolower($materia->nombre), 'fís') || str_contains(strtolower($materia->nombre), 'fis')) {
+                    $abrev = 'FIS';
+                } elseif (str_contains(strtolower($materia->nombre), 'ing')) {
+                    $abrev = 'ING';
+                }
+
+                $letter = chr(65 + $key); // A, B, C, D
+                $nombreParaleloBase = "Grupo {$letter} - {$abrev}";
+
+                $grupoExisteBase = DB::table('grupos')
+                    ->where('materia_id', $materia->id)
+                    ->where('nombre_paralelo', $nombreParaleloBase)
+                    ->exists();
+
+                if (!$grupoExisteBase) {
+                    $slot = $slotsBase[$key % 4];
+                    $docenteId = $docentesList[$key] ?? ($docentesList[0] ?? 1);
+                    DB::table('grupos')->insert([
+                        'materia_id'      => $materia->id,
+                        'docente_id'      => $docenteId,
+                        'aula_id'         => 1, // Aula 236
+                        'nombre_paralelo' => $nombreParaleloBase,
+                        'cupo_inscritos'  => 0,
+                        'dia_semana'      => 'Lunes',
+                        'hora_inicio'     => $slot[0],
+                        'hora_fin'        => $slot[1],
+                        'created_at'      => now(),
+                        'updated_at'      => now(),
+                    ]);
+                }
+            }
+
+            // Calcular primero la cantidad total de inscritos pagados
+            $total_pagados = DB::table('pagos')
+                ->where('estado_pago', 'Pagado')
+                ->distinct('postulante_id')
+                ->count('postulante_id');
+
+            // Si la cantidad supera los 60 alumnos, crear paralelos dinámicamente
+            if ($total_pagados > 60) {
+                $gruposNecesarios = (int) ceil($total_pagados / 60);
+                $materiasList = DB::table('materias')->orderBy('id')->get();
+                
+                $slots = [
+                    ['08:00:00', '10:00:00'],
+                    ['10:00:00', '12:00:00'],
+                    ['12:00:00', '14:00:00'],
+                    ['14:00:00', '16:00:00'],
+                ];
+
+                for ($g = 2; $g <= $gruposNecesarios; $g++) {
+                    foreach ($materiasList as $key => $materia) {
+                        $abrev = 'COMP';
+                        if (str_contains(strtolower($materia->nombre), 'mat')) {
+                            $abrev = 'MAT';
+                        } elseif (str_contains(strtolower($materia->nombre), 'fís') || str_contains(strtolower($materia->nombre), 'fis')) {
+                            $abrev = 'FIS';
+                        } elseif (str_contains(strtolower($materia->nombre), 'ing')) {
+                            $abrev = 'ING';
+                        }
+
+                        $letter = chr(65 + $key);
+                        $nombreParalelo = "Grupo {$letter}{$g} - {$abrev}";
+
+                        $grupoExiste = DB::table('grupos')
+                            ->where('materia_id', $materia->id)
+                            ->where('nombre_paralelo', $nombreParalelo)
+                            ->exists();
+
+                        if (!$grupoExiste) {
+                            $slot = $slots[$key % 4];
+
+                            // Buscar el docente_id asignado al Grupo 1 (paralelo base) de esta materia
+                            $nombreParaleloBase = "Grupo {$letter} - {$abrev}";
+                            $docenteId = DB::table('grupos')
+                                ->where('materia_id', $materia->id)
+                                ->where('nombre_paralelo', $nombreParaleloBase)
+                                ->value('docente_id');
+
+                            if (!$docenteId) {
+                                $docentesList = DB::table('docentes')->orderBy('id')->pluck('id')->toArray();
+                                $docenteId = $docentesList[$key] ?? ($docentesList[0] ?? 1);
+                            }
+
+                            DB::table('grupos')->insert([
+                                'materia_id'      => $materia->id,
+                                'docente_id'      => $docenteId,
+                                'aula_id'         => 1, // Aula 236
+                                'nombre_paralelo' => $nombreParalelo,
+                                'cupo_inscritos'  => 0,
+                                'dia_semana'      => 'Lunes',
+                                'hora_inicio'     => $slot[0],
+                                'hora_fin'        => $slot[1],
+                                'created_at'      => now(),
+                                'updated_at'      => now(),
+                            ]);
+                        }
+                    }
+                }
             }
 
             // Obtener todas las materias oficiales registradas (Computación, Matemáticas, Física, Inglés)
@@ -273,43 +428,67 @@ class AcademicoController extends Controller
      */
     public function procesarCorteAdmision(Request $request): JsonResponse
     {
+        if ($request->user()->rol_id != 1) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
         $request->validate([
-            'carrera_id' => ['required', 'integer', 'exists:carreras,id'],
+            'carrera_id' => ['nullable', 'integer', 'exists:carreras,id'],
         ], [
-            'carrera_id.required' => 'El campo carrera_id es obligatorio.',
             'carrera_id.integer'  => 'El carrera_id debe ser un número entero.',
             'carrera_id.exists'   => 'La carrera indicada no existe en el sistema.',
         ]);
 
-        $carreraId = (int) $request->carrera_id;
+        $carreraId = $request->has('carrera_id') && !is_null($request->carrera_id) ? (int) $request->carrera_id : null;
 
         try {
-            // Ejecutar el procedimiento almacenado CU-14.
-            // El SP gestiona internamente la transacción con bloqueo pesimista.
-            DB::statement('CALL prc_ejecutar_core_admision(?)', [$carreraId]);
+            if ($carreraId) {
+                // Ejecutar el procedimiento almacenado para una sola carrera
+                DB::statement('CALL prc_ejecutar_core_admision(?)', [$carreraId]);
 
-            // Recuperar el estado actualizado de la carrera para enriquecer la respuesta
-            $carrera = Carrera::findOrFail($carreraId);
+                // Recuperar el estado actualizado de la carrera para enriquecer la respuesta
+                $carrera = Carrera::findOrFail($carreraId);
 
-            // Contadores de resultados para la respuesta del cliente
-            $admitidos           = Postulante::where('opcion1_carrera_id', $carreraId)
-                ->where('estado_final', 'Admitido')->count();
-            $noAdmitidos         = Postulante::where('opcion1_carrera_id', $carreraId)
-                ->where('estado_final', 'No Admitido')->count();
-            $pendientesSegunda   = Postulante::where('opcion1_carrera_id', $carreraId)
-                ->where('estado_final', 'Pendiente Segunda Opción')->count();
+                // Contadores de resultados para la respuesta del cliente
+                $admitidos           = Postulante::where('opcion1_carrera_id', $carreraId)
+                    ->where('estado_final', 'Admitido')->count();
+                $noAdmitidos         = Postulante::where('opcion1_carrera_id', $carreraId)
+                    ->where('estado_final', 'No Admitido')->count();
+                $pendientesSegunda   = Postulante::where('opcion1_carrera_id', $carreraId)
+                    ->where('estado_final', 'Pendiente Segunda Opción')->count();
 
-            return response()->json([
-                'mensaje'                => "Corte de admisión ejecutado exitosamente para la carrera '{$carrera->nombre_carrera}'.",
-                'carrera'               => $carrera->nombre_carrera,
-                'cupo_limite'           => $carrera->cupo_limite,
-                'total_admitidos'       => $carrera->total_admitidos,
-                'resumen' => [
-                    'admitidos'              => $admitidos,
-                    'no_admitidos'           => $noAdmitidos,
-                    'pendiente_segunda'      => $pendientesSegunda,
-                ],
-            ], 200);
+                return response()->json([
+                    'mensaje'                => "Corte de admisión ejecutado exitosamente para la carrera '{$carrera->nombre_carrera}'.",
+                    'carrera'               => $carrera->nombre_carrera,
+                    'cupo_limite'           => $carrera->cupo_limite,
+                    'total_admitidos'       => $carrera->total_admitidos,
+                    'resumen' => [
+                        'admitidos'              => $admitidos,
+                        'no_admitidos'           => $noAdmitidos,
+                        'pendiente_segunda'      => $pendientesSegunda,
+                    ],
+                ], 200);
+            } else {
+                // Ejecutar el corte para todas las carreras de forma global
+                $carreras = Carrera::all();
+                foreach ($carreras as $carrera) {
+                    DB::statement('CALL prc_ejecutar_core_admision(?)', [$carrera->id]);
+                }
+
+                // Obtener el consolidado global de resultados
+                $admitidos           = Postulante::where('estado_final', 'Admitido')->count();
+                $noAdmitidos         = Postulante::where('estado_final', 'No Admitido')->count();
+                $pendientesSegunda   = Postulante::where('estado_final', 'Pendiente Segunda Opción')->count();
+
+                return response()->json([
+                    'mensaje' => "Corte de admisión ejecutado exitosamente para todas las carreras.",
+                    'resumen' => [
+                        'admitidos'              => $admitidos,
+                        'no_admitidos'           => $noAdmitidos,
+                        'pendiente_segunda'      => $pendientesSegunda,
+                    ],
+                ], 200);
+            }
 
         } catch (Throwable $e) {
             $mensajeError = $e->getMessage();

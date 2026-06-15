@@ -8,6 +8,7 @@ use App\Models\Materia;
 use App\Models\Grupo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class ReporteController extends Controller
 {
@@ -16,10 +17,31 @@ class ReporteController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getReporteGeneral(): JsonResponse
+    public function getReporteGeneral(Request $request): JsonResponse
     {
+        if ($request->user()->rol_id != 1 && $request->user()->rol_id != 4) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
         // Eager Loading estricto para evitar N+1
-        $postulantes = Postulante::with(['usuario', 'carreraOpcion1', 'carreraOpcion2', 'inscripciones.calificacion'])->get();
+        $postulantes = Postulante::with([
+            'usuario', 
+            'carreraOpcion1', 
+            'carreraOpcion2', 
+            'inscripciones' => function ($query) {
+                $query->where('periodo_academico', '2-2026');
+            },
+            'inscripciones.calificacion'
+        ])
+            ->select('postulantes.*')
+            ->selectSub(function ($query) {
+                $query->selectRaw('COALESCE(AVG(c.promedio_ponderado), 0.00)')
+                    ->from('inscripciones as i')
+                    ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+                    ->whereColumn('i.postulante_id', 'postulantes.id')
+                    ->where('i.periodo_academico', '2-2026');
+            }, 'promedio_calculado')
+            ->get();
 
         return response()->json($postulantes);
     }
@@ -29,12 +51,36 @@ class ReporteController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getReporteAprobados(): JsonResponse
+    public function getReporteAprobados(Request $request): JsonResponse
     {
-        $aprobados = Postulante::with(['usuario', 'carreraOpcion1', 'carreraOpcion2', 'inscripciones.calificacion'])
-            ->whereHas('inscripciones.calificacion', function ($query) {
-                $query->where('estado_aprobacion', true);
-            }, '=', 4)
+        if ($request->user()->rol_id != 1 && $request->user()->rol_id != 4) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
+        $aprobados = Postulante::with([
+            'usuario', 
+            'carreraOpcion1', 
+            'carreraOpcion2', 
+            'inscripciones' => function ($query) {
+                $query->where('periodo_academico', '2-2026');
+            },
+            'inscripciones.calificacion'
+        ])
+            ->select('postulantes.*')
+            ->selectSub(function ($query) {
+                $query->selectRaw('COALESCE(AVG(c.promedio_ponderado), 0.00)')
+                    ->from('inscripciones as i')
+                    ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+                    ->whereColumn('i.postulante_id', 'postulantes.id')
+                    ->where('i.periodo_academico', '2-2026');
+            }, 'promedio_calculado')
+            ->where(function ($query) {
+                $query->selectRaw('COALESCE(AVG(c.promedio_ponderado), 0.00)')
+                    ->from('inscripciones as i')
+                    ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+                    ->whereColumn('i.postulante_id', 'postulantes.id')
+                    ->where('i.periodo_academico', '2-2026');
+            }, '>=', 60.00)
             ->get();
 
         return response()->json($aprobados);
@@ -45,12 +91,36 @@ class ReporteController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getReporteReprobados(): JsonResponse
+    public function getReporteReprobados(Request $request): JsonResponse
     {
-        $reprobados = Postulante::with(['usuario', 'carreraOpcion1', 'carreraOpcion2', 'inscripciones.calificacion'])
-            ->whereHas('inscripciones.calificacion', function ($query) {
-                $query->where('estado_aprobacion', false);
-            })
+        if ($request->user()->rol_id != 1 && $request->user()->rol_id != 4) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
+        $reprobados = Postulante::with([
+            'usuario', 
+            'carreraOpcion1', 
+            'carreraOpcion2', 
+            'inscripciones' => function ($query) {
+                $query->where('periodo_academico', '2-2026');
+            },
+            'inscripciones.calificacion'
+        ])
+            ->select('postulantes.*')
+            ->selectSub(function ($query) {
+                $query->selectRaw('COALESCE(AVG(c.promedio_ponderado), 0.00)')
+                    ->from('inscripciones as i')
+                    ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+                    ->whereColumn('i.postulante_id', 'postulantes.id')
+                    ->where('i.periodo_academico', '2-2026');
+            }, 'promedio_calculado')
+            ->where(function ($query) {
+                $query->selectRaw('COALESCE(AVG(c.promedio_ponderado), 0.00)')
+                    ->from('inscripciones as i')
+                    ->leftJoin('calificaciones as c', 'i.id', '=', 'c.inscripcion_id')
+                    ->whereColumn('i.postulante_id', 'postulantes.id')
+                    ->where('i.periodo_academico', '2-2026');
+            }, '<', 60.00)
             ->get();
 
         return response()->json($reprobados);
@@ -128,5 +198,31 @@ class ReporteController extends Controller
             });
 
         return response()->json($ranking);
+    }
+
+    /**
+     * Retornar los logs de bitácora de auditoría del sistema.
+     */
+    public function getBitacoraLogs(Request $request): JsonResponse
+    {
+        if ($request->user()->rol_id != 1 && $request->user()->rol_id != 4) {
+            return response()->json(["error" => "No autorizado"], 403);
+        }
+
+        $logs = DB::table('bitacoras as b')
+            ->leftJoin('users as u', 'b.user_id', '=', 'u.id')
+            ->select([
+                'b.id',
+                'u.full_name as usuario',
+                'b.accion',
+                'b.tabla_afectada',
+                'b.ip_address',
+                'b.v_data_json',
+                'b.created_at'
+            ])
+            ->orderBy('b.id', 'desc')
+            ->get();
+
+        return response()->json($logs);
     }
 }

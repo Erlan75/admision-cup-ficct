@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('postulante_id')->constrained('postulantes');
             $table->foreignId('grupo_id')->constrained('grupos');
+            $table->string('periodo_academico', 20)->default('2-2026');
             $table->timestamp('fecha_inscripcion')->useCurrent(); // Por defecto el servidor
         });
     }

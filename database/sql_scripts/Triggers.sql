@@ -10,6 +10,11 @@
 CREATE OR REPLACE FUNCTION fn_trg_01_calcular_nota()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Asegurar que las notas no sean nulas antes de calcular
+    NEW.parcial_1 := COALESCE(NEW.parcial_1, 0.00);
+    NEW.parcial_2 := COALESCE(NEW.parcial_2, 0.00);
+    NEW.examen_final := COALESCE(NEW.examen_final, 0.00);
+
     -- Calcular promedio ponderado dinámicamente
     NEW.promedio_ponderado := (NEW.parcial_1 * 0.30) + (NEW.parcial_2 * 0.30) + (NEW.examen_final * 0.40);
 

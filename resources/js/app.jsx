@@ -6,6 +6,7 @@ import Login from './components/Login';
 import DashboardAdmin from './components/DashboardAdmin';
 import PanelReportes from './components/PanelReportes';
 import RegistroNotas from './components/RegistroNotas';
+import PortalPostulante from './components/PortalPostulante';
 
 function App() {
     const [vistaActual, setVistaActual] = useState('inscripcion');
@@ -16,6 +17,7 @@ function App() {
         if (path === '/dashboard') return 'dashboard';
         if (path === '/admin/reportes') return 'reportes';
         if (path === '/docente/notas') return 'notas';
+        if (path === '/estudiante/portal') return 'portal_estudiante';
         return 'inscripcion';
     };
 
@@ -24,6 +26,7 @@ function App() {
         if (vista === 'dashboard') return '/dashboard';
         if (vista === 'reportes') return '/admin/reportes';
         if (vista === 'notas') return '/docente/notas';
+        if (vista === 'portal_estudiante') return '/estudiante/portal';
         return '/';
     };
 
@@ -57,39 +60,43 @@ function App() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
+    const handleLoginSuccess = () => {
+        const rol = localStorage.getItem('user_rol');
+        if (rol === 'Postulante' || rol === '3') {
+            navegarA('portal_estudiante');
+        } else {
+            navegarA('dashboard');
+        }
+    };
+
     return (
         <div className="bg-slate-950 text-slate-100 min-h-screen">
             {/* Navbar superior */}
-            <nav className="bg-slate-900 border-b border-slate-800 p-4 flex gap-4 items-center">
-                <button 
-                    onClick={() => navegarA('inscripcion')} 
-                    className={`px-4 py-2 rounded transition-colors ${vistaActual === 'inscripcion' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                    Inscripción CUP 2026
-                </button>
-                <button 
-                    onClick={() => navegarA('login')} 
-                    className={`px-4 py-2 rounded transition-colors ${vistaActual === 'login' || vistaActual === 'dashboard' || vistaActual === 'reportes' || vistaActual === 'notas' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                    Portal Docente / Administrativo
-                </button>
-                {(vistaActual === 'dashboard' || vistaActual === 'reportes' || vistaActual === 'notas') && (
+            {!(vistaActual === 'dashboard' || vistaActual === 'reportes' || vistaActual === 'notas' || vistaActual === 'portal_estudiante') && (
+                <nav className="bg-slate-900 border-b border-slate-800 p-4 flex gap-4 items-center">
                     <button 
-                        onClick={() => navegarA('dashboard')} 
-                        className="px-4 py-2 rounded text-blue-400 hover:bg-slate-800 ml-auto transition-colors font-medium text-sm border border-blue-900/30"
+                        onClick={() => navegarA('inscripcion')} 
+                        className={`px-4 py-2 rounded transition-colors ${vistaActual === 'inscripcion' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
                     >
-                        Volver al Panel
+                        Inscripción CUP 2026
                     </button>
-                )}
-            </nav>
+                    <button 
+                        onClick={() => navegarA('login')} 
+                        className={`px-4 py-2 rounded transition-colors ${vistaActual === 'login' || vistaActual === 'dashboard' || vistaActual === 'reportes' || vistaActual === 'notas' || vistaActual === 'portal_estudiante' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Portal Docente / Administrativo
+                    </button>
+                </nav>
+            )}
 
             {/* Renderizado Condicional */}
             <div className="p-6">
                 {vistaActual === 'inscripcion' && <RegistroPostulante />}
-                {vistaActual === 'login' && <Login onLoginSuccess={() => navegarA('dashboard')} />}
+                {vistaActual === 'login' && <Login onLoginSuccess={handleLoginSuccess} />}
                 {vistaActual === 'dashboard' && <DashboardAdmin onNavigate={navegarA} />}
                 {vistaActual === 'reportes' && <PanelReportes onNavigate={navegarA} />}
                 {vistaActual === 'notas' && <RegistroNotas onNavigate={navegarA} />}
+                {vistaActual === 'portal_estudiante' && <PortalPostulante onNavigate={navegarA} />}
             </div>
         </div>
     );

@@ -150,6 +150,7 @@ CREATE TABLE inscripciones (
     postulante_id BIGINT NOT NULL,
     grupo_id BIGINT NOT NULL,
     fecha_inscripcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    periodo_academico VARCHAR(20) NOT NULL DEFAULT '2-2026',
     CONSTRAINT fk_inscripciones_postulantes FOREIGN KEY (postulante_id) REFERENCES postulantes(id),
     CONSTRAINT fk_inscripciones_grupos FOREIGN KEY (grupo_id) REFERENCES grupos(id)
 );

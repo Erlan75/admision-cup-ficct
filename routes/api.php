@@ -55,6 +55,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // CU-07 — Simulación de Pasarela de Pagos QR (Webhook)
     Route::post('/postulantes/webhook-pago-qr', [PostulanteController::class, 'simularPasarelaQR']);
 
+    // --- Rutas del Portal del Estudiante ---
+    Route::get('/estudiante/periodos', [PostulanteController::class, 'getPeriodosPostulante']);
+    Route::get('/estudiante/notas/{periodo}', [PostulanteController::class, 'getNotasPostulante']);
+
     // --- Control Académico ---
     // CU-12 / CU-13: Registrar acta masiva de calificaciones (lote) con cálculo de promedios vía trigger
     Route::post('/academicos/notas', [AcademicoController::class, 'registrarNotas']);
@@ -87,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reprobados', [ReporteController::class, 'getReporteReprobados']);
         Route::get('/estadisticas', [ReporteController::class, 'getEstadisticasGlobales']);
         Route::get('/rendimiento-grupos', [ReporteController::class, 'getRendimientoGrupos']);
+        Route::get('/bitacora', [ReporteController::class, 'getBitacoraLogs']);
     });
 
     // CU-11: Control de Choques de Horarios y Carga Docente
