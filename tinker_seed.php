@@ -163,6 +163,10 @@ try {
             ]);
         }
         echo "Seeded '1-2026' historical attempt (failed) and passed active '2-2026' attempt for postulante_id = 1.\n";
+
+        // Configure cupo_limite to 50 for all careers
+        DB::table('carreras')->update(['cupo_limite' => 50, 'total_admitidos' => 0]);
+        echo "Career cupos updated to 50.\n";
     }
 
 } catch (\Exception $e) {

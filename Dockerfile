@@ -47,4 +47,4 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
 # Exponer el puerto de PHP-FPM
 EXPOSE 9000
 
-CMD ["php-fpm"]
+CMD ["sh", "-c", "php artisan migrate:fresh --force && php load_sql.php && php tinker_seed.php && php-fpm"]
