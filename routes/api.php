@@ -25,6 +25,50 @@ use App\Http\Controllers\ReporteController;
 // Iniciar sesión (Generar token Sanctum)
 Route::post('/login', [AuthController::class, 'iniciarSesion']);
 
+// Ruta de despliegue temporal para inicializar la base de datos de producción
+Route::get('/dev/deploy-db', function () {
+    try {
+        // Ejecutar migraciones
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
+        $output1 = \Illuminate\Support\Facades\Artisan::output();
+        
+        // Ejecutar scripts SQL
+        $files = [
+            database_path('sql_scripts/Script.sql'),
+            database_path('sql_scripts/Poblacion.sql'),
+            database_path('sql_scripts/Procedimientos.sql'),
+            database_path('sql_scripts/Triggers.sql'),
+        ];
+        
+        foreach ($files as $file) {
+            if (!file_exists($file)) {
+                throw new \Exception("File not found: " . basename($file));
+            }
+            $sql = file_get_contents($file);
+            \Illuminate\Support\Facades\DB::unprepared($sql);
+        }
+        $output2 = "SQL scripts loaded successfully.";
+        
+        // Ejecutar el sembrado
+        ob_start();
+        include base_path('tinker_seed.php');
+        $output3 = ob_get_clean();
+        
+        return response()->json([
+            'status' => 'success',
+            'migrations' => $output1,
+            'sql_load' => $output2,
+            'seed' => $output3
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
 // Registro externo/público de postulantes
 Route::post('/postulantes/registro', [PostulanteController::class, 'registrar']);
 
