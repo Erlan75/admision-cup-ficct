@@ -45,7 +45,16 @@ Route::get('/dev/deploy-db', function () {
                 throw new \Exception("File not found: " . basename($file));
             }
             $sql = file_get_contents($file);
-            \Illuminate\Support\Facades\DB::unprepared($sql);
+            try {
+                \Illuminate\Support\Facades\DB::unprepared($sql);
+            } catch (\Exception $e) {
+                $msg = $e->getMessage();
+                if (str_contains($msg, 'already exists') || str_contains($msg, 'ya existe')) {
+                    // Ignorar duplicados tal como hace load_sql.php
+                } else {
+                    throw $e;
+                }
+            }
         }
         $output2 = "SQL scripts loaded successfully.";
         
