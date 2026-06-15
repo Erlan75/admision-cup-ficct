@@ -107,7 +107,7 @@ DECLARE
         JOIN inscripciones i  ON p.id = i.postulante_id AND i.periodo_academico = '2-2026'
         JOIN calificaciones c ON i.id  = c.inscripcion_id
         WHERE p.opcion1_carrera_id = p_carrera_id
-          AND p.estado_final NOT IN ('Admitido', 'No Admitido')
+          AND p.estado_final NOT IN ('Admitido')
         GROUP BY p.id
         HAVING COUNT(CASE WHEN c.estado_aprobacion = TRUE THEN 1 END) = 4
         ORDER BY AVG(c.promedio_ponderado) DESC;
@@ -134,7 +134,7 @@ BEGIN
     SET    estado_final = 'No Admitido',
            updated_at   = CURRENT_TIMESTAMP
     WHERE  p.opcion1_carrera_id = p_carrera_id
-      AND  p.estado_final NOT IN ('No Admitido')
+      AND  p.estado_final NOT IN ('Admitido')
       AND  p.id IN (
           SELECT i.postulante_id
           FROM inscripciones i
