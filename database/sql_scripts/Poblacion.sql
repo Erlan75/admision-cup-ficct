@@ -53,7 +53,7 @@ INSERT INTO docentes (user_id, especialidad_maestria, diplomado_superior) VALUES
 
 -- 7. Registrar grupos de estudio asociados a docentes y aulas
 INSERT INTO grupos (materia_id, docente_id, aula_id, nombre_paralelo, cupo_inscritos) VALUES
-(1, 1, 1, 'Grupo A - COMP', 0),
-(2, 2, 2, 'Grupo B - MAT', 0),
-(3, 3, 3, 'Grupo C - FIS', 0),
-(4, 4, 4, 'Grupo D - ING', 0);
+(1, 1, 1, 'Grupo A1 - COMP', 0),
+(2, 2, 2, 'Grupo B1 - MAT', 0),
+(3, 3, 3, 'Grupo C1 - FIS', 0),
+(4, 4, 4, 'Grupo D1 - ING', 0);

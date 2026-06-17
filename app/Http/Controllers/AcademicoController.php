@@ -155,7 +155,7 @@ class AcademicoController extends Controller
     public function obtenerEstadisticasDashboard(): JsonResponse
     {
         // 1. Total de inscritos únicos
-        $totalInscritos = Inscripcion::distinct('postulante_id')->count('postulante_id');
+        $totalInscritos = Postulante::count();
 
         $totalAprobados = DB::table('inscripciones')
             ->join('calificaciones', 'inscripciones.id', '=', 'calificaciones.inscripcion_id')
@@ -175,7 +175,8 @@ class AcademicoController extends Controller
             ->count('inscripciones.postulante_id');
 
         // 4. Cantidad de grupos dinámicos necesarios basados en la capacidad física máxima estricta de 60 por aula
-        $gruposNecesarios = ceil($totalInscritos / 60);
+        $aforoMaximo = 60;
+        $gruposNecesarios = ceil($totalInscritos / $aforoMaximo);
 
         return response()->json([
             'total_inscritos'              => $totalInscritos,
@@ -245,7 +246,7 @@ class AcademicoController extends Controller
                 }
 
                 $letter = chr(65 + $key); // A, B, C, D
-                $nombreParaleloBase = "Grupo {$letter} - {$abrev}";
+                $nombreParaleloBase = "Grupo {$letter}1 - {$abrev}";
 
                 $grupoExisteBase = DB::table('grupos')
                     ->where('materia_id', $materia->id)
@@ -270,15 +271,13 @@ class AcademicoController extends Controller
                 }
             }
 
-            // Calcular primero la cantidad total de inscritos pagados
-            $total_pagados = DB::table('pagos')
-                ->where('estado_pago', 'Pagado')
-                ->distinct('postulante_id')
-                ->count('postulante_id');
+            // Calcular la cantidad total de postulantes para la distribución áulica
+            $totalInscritos = Postulante::count();
+            $aforoMaximo = 60;
 
             // Si la cantidad supera los 60 alumnos, crear paralelos dinámicamente
-            if ($total_pagados > 60) {
-                $gruposNecesarios = (int) ceil($total_pagados / 60);
+            if ($totalInscritos > $aforoMaximo) {
+                $gruposNecesarios = (int) ceil($totalInscritos / $aforoMaximo);
                 $materiasList = DB::table('materias')->orderBy('id')->get();
                 
                 $slots = [
@@ -311,7 +310,7 @@ class AcademicoController extends Controller
                             $slot = $slots[$key % 4];
 
                             // Buscar el docente_id asignado al Grupo 1 (paralelo base) de esta materia
-                            $nombreParaleloBase = "Grupo {$letter} - {$abrev}";
+                            $nombreParaleloBase = "Grupo {$letter}1 - {$abrev}";
                             $docenteId = DB::table('grupos')
                                 ->where('materia_id', $materia->id)
                                 ->where('nombre_paralelo', $nombreParaleloBase)
@@ -328,7 +327,7 @@ class AcademicoController extends Controller
                                 'aula_id'         => 1, // Aula 236
                                 'nombre_paralelo' => $nombreParalelo,
                                 'cupo_inscritos'  => 0,
-                                'dia_semana'      => 'Lunes',
+                                'dia_semana'      => ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][($g - 2) % 6],
                                 'hora_inicio'     => $slot[0],
                                 'hora_fin'        => $slot[1],
                                 'created_at'      => now(),
@@ -628,6 +627,160 @@ class AcademicoController extends Controller
             return response()->json([
                 'error'   => 'Error interno durante la asignación del docente.',
                 'detalle' => $mensajeError,
+            ], 500);
+        }
+    }
+
+    /**
+     * Importar notas masivas desde un archivo CSV para un grupo específico.
+     * Solo accesible por el Docente titular del grupo.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function importarNotasCSV(Request $request): JsonResponse
+    {
+        // 1. Validar que el usuario sea un Docente (rol_id = 2)
+        if ($request->user()->rol_id != 2) {
+            return response()->json(["error" => "No autorizado. Solo los docentes pueden realizar esta acción."], 403);
+        }
+
+        // Buscar el perfil de docente asociado
+        $docente = DB::table('docentes')->where('user_id', $request->user()->id)->first();
+        if (!$docente) {
+            return response()->json(["error" => "No autorizado. Perfil docente no encontrado."], 403);
+        }
+
+        // 2. Validar grupo_id y archivo
+        $request->validate([
+            'grupo_id' => ['required', 'integer'],
+            'archivo'  => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+        ]);
+
+        $grupoId = $request->input('grupo_id');
+        $grupo = DB::table('grupos')->where('id', $grupoId)->first();
+
+        if (!$grupo) {
+            return response()->json(["error" => "Grupo no encontrado."], 404);
+        }
+
+        // Validar que el grupo pertenezca legítimamente a este docente
+        if ($grupo->docente_id != $docente->id) {
+            return response()->json(["error" => "No autorizado. Este grupo no le pertenece."], 403);
+        }
+
+        $archivo = $request->file('archivo');
+        $handle  = fopen($archivo->getRealPath(), 'r');
+
+        if (!$handle) {
+            return response()->json(['error' => 'No se pudo abrir el archivo CSV.'], 422);
+        }
+
+        // Leer cabecera
+        $cabecera = fgetcsv($handle, 0, ',');
+        if (!$cabecera) {
+            fclose($handle);
+            return response()->json(['error' => 'El archivo CSV está vacío o tiene un formato incorrecto.'], 422);
+        }
+
+        // Normalizar columnas de la cabecera
+        $cabecera = array_map(fn($col) => strtolower(trim($col, " \t\n\r\0\x0B\xEF\xBB\xBF")), $cabecera);
+
+        $ciKey = array_search('ci', $cabecera);
+        
+        $p1Key = array_search('parcial1', $cabecera);
+        if ($p1Key === false) $p1Key = array_search('parcial_1', $cabecera);
+        
+        $p2Key = array_search('parcial2', $cabecera);
+        if ($p2Key === false) $p2Key = array_search('parcial_2', $cabecera);
+        
+        $efKey = array_search('examen_final', $cabecera);
+        if ($efKey === false) $efKey = array_search('examenfinal', $cabecera);
+
+        if ($ciKey === false) {
+            fclose($handle);
+            return response()->json(['error' => 'El archivo CSV debe contener la columna "ci".'], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $updatedCount = 0;
+            $errors = [];
+            $fila = 1;
+
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                $fila++;
+                
+                $ci = trim($row[$ciKey] ?? '');
+                if (empty($ci)) {
+                    continue;
+                }
+
+                $p1 = ($p1Key !== false && isset($row[$p1Key]) && $row[$p1Key] !== '') ? trim($row[$p1Key]) : null;
+                $p2 = ($p2Key !== false && isset($row[$p2Key]) && $row[$p2Key] !== '') ? trim($row[$p2Key]) : null;
+                $ef = ($efKey !== false && isset($row[$efKey]) && $row[$efKey] !== '') ? trim($row[$efKey]) : null;
+
+                // Buscar el postulante por su CI
+                $postulante = DB::table('postulantes')->where('ci', $ci)->first();
+                if (!$postulante) {
+                    $errors[] = "Fila {$fila}: Postulante con CI {$ci} no encontrado.";
+                    continue;
+                }
+
+                // Buscar la inscripción en el grupo correspondiente
+                $inscripcion = DB::table('inscripciones')
+                    ->where('postulante_id', $postulante->id)
+                    ->where('grupo_id', $grupoId)
+                    ->first();
+
+                if (!$inscripcion) {
+                    $errors[] = "Fila {$fila}: El postulante con CI {$ci} no está inscrito en este grupo.";
+                    continue;
+                }
+
+                // Obtener o crear registro en calificaciones usando Eloquent
+                $calificacion = Calificacion::where('inscripcion_id', $inscripcion->id)->first();
+
+                $dataToUpdate = [];
+                if ($p1 !== null) $dataToUpdate['parcial_1'] = (float) $p1;
+                if ($p2 !== null) $dataToUpdate['parcial_2'] = (float) $p2;
+                if ($ef !== null) $dataToUpdate['examen_final'] = (float) $ef;
+
+                if ($calificacion) {
+                    $calificacion->update($dataToUpdate);
+                } else {
+                    $dataToUpdate['inscripcion_id'] = $inscripcion->id;
+                    Calificacion::create($dataToUpdate);
+                }
+
+                $updatedCount++;
+            }
+
+            fclose($handle);
+
+            if (count($errors) > 0 && $updatedCount == 0) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => 'No se pudo importar ninguna nota.',
+                    'errores' => $errors,
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'mensaje' => "Importación completada. Se actualizaron {$updatedCount} calificaciones.",
+                'actualizados' => $updatedCount,
+                'errores' => $errors,
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            fclose($handle);
+            return response()->json([
+                'error' => 'Error al procesar el archivo CSV de calificaciones.',
+                'detalle' => $e->getMessage(),
             ], 500);
         }
     }

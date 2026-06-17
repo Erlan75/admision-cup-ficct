@@ -112,9 +112,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/estudiante/periodos', [PostulanteController::class, 'getPeriodosPostulante']);
     Route::get('/estudiante/notas/{periodo}', [PostulanteController::class, 'getNotasPostulante']);
 
-    // --- Control Académico ---
     // CU-12 / CU-13: Registrar acta masiva de calificaciones (lote) con cálculo de promedios vía trigger
     Route::post('/academicos/notas', [AcademicoController::class, 'registrarNotas']);
+    Route::post('/academicos/notas/importar-csv', [AcademicoController::class, 'importarNotasCSV']);
+    Route::post('/docente/importar-notas-csv', [AcademicoController::class, 'importarNotasCSV']);
 
     // Obtener indicadores clave de planificación y rendimiento para el Dashboard
     Route::get('/academicos/dashboard', [AcademicoController::class, 'obtenerEstadisticasDashboard']);

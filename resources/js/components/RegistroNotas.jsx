@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -82,34 +83,89 @@ const RegistroNotas = (props) => {
     const [saving,          setSaving]          = useState(false);
     const [alert,           setAlert]           = useState(null); // { type, mensaje, detalle? }
 
+    // ── Estado: Importación CSV ────────────────────────────────────────────────
+    const [importing, setImporting] = useState(false);
+
+    // ── Cargar grupos (reutilizable) ───────────────────────────────────────────
+    const cargarGrupos = useCallback(async () => {
+        setLoadingGrupos(true);
+        try {
+            const res = await fetch('/api/academicos/grupos', {
+                method:  'GET',
+                headers: authHeaders(),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                let list = data.grupos ?? [];
+                const userRol = localStorage.getItem('user_rol');
+                const userName = localStorage.getItem('user_name');
+                if (userRol === '2' || userRol === 'Docente') {
+                    list = list.filter(g => 
+                        g.docente && g.docente.usuario && g.docente.usuario.full_name === userName
+                    );
+                }
+                setGrupos(list);
+            }
+        } catch {
+            // Si falla, la planilla simplemente queda vacía
+        } finally {
+            setLoadingGrupos(false);
+        }
+    }, []);
+
     // ── Cargar grupos al montar ────────────────────────────────────────────────
     useEffect(() => {
-        const fetchGrupos = async () => {
-            try {
-                const res = await fetch('/api/academicos/grupos', {
-                    method:  'GET',
-                    headers: authHeaders(),
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    let list = data.grupos ?? [];
-                    const userRol = localStorage.getItem('user_rol');
-                    const userName = localStorage.getItem('user_name');
-                    if (userRol === '2' || userRol === 'Docente') {
-                        list = list.filter(g => 
-                            g.docente && g.docente.usuario && g.docente.usuario.full_name === userName
-                        );
-                    }
-                    setGrupos(list);
+        cargarGrupos();
+    }, [cargarGrupos]);
+
+    // ── Manejador de importación de notas vía CSV ─────────────────────────────
+    const handleCSVUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setImporting(true);
+        setAlert(null);
+
+        const formData = new FormData();
+        formData.append('grupo_id', grupoSeleccionado);
+        formData.append('archivo', file);
+
+        const token = localStorage.getItem('auth_token');
+
+        try {
+            const response = await axios.post('/api/docente/importar-notas-csv', formData, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
                 }
-            } catch {
-                // Si falla, la planilla simplemente queda vacía
-            } finally {
-                setLoadingGrupos(false);
-            }
-        };
-        fetchGrupos();
-    }, []);
+            });
+
+            const data = response.data;
+
+            setAlert({
+                type: 'success',
+                mensaje: data.mensaje ?? 'Notas importadas con éxito desde CSV.',
+                detalle: data.errores && data.errores.length > 0 
+                    ? `Advertencias:\n${data.errores.join('\n')}`
+                    : 'Las calificaciones han sido actualizadas y recalculadas por el sistema.'
+            });
+
+            // Recargar planilla
+            await cargarGrupos();
+
+        } catch (err) {
+            const data = err.response?.data;
+            setAlert({
+                type: 'error',
+                mensaje: data?.error ?? 'Error al importar calificaciones.',
+                detalle: data?.errores ? data.errores.join('\n') : (data?.detalle ?? err.message)
+            });
+        } finally {
+            setImporting(false);
+            e.target.value = ''; // Reset input element
+        }
+    };
 
     // ── Cuando cambia el grupo seleccionado: poblar planilla ──────────────────
     useEffect(() => {
@@ -338,21 +394,47 @@ const RegistroNotas = (props) => {
                             No hay grupos con inscritos. Ejecuta primero la Distribución Áulica.
                         </div>
                     ) : (
-                        <select
-                            id="select-grupo"
-                            value={grupoSeleccionado}
-                            onChange={e => setGrupoSeleccionado(e.target.value)}
-                            className="w-full sm:w-96 px-4 py-3 rounded-xl border border-slate-700
-                                       bg-slate-950 text-white focus:outline-none focus:ring-2
-                                       focus:ring-indigo-500 text-sm appearance-none cursor-pointer"
-                        >
-                            <option value="">— Selecciona un grupo para cargar la planilla —</option>
-                            {grupos.map(g => (
-                                <option key={g.id} value={g.id}>
-                                    Paralelo {g.nombre_paralelo} &nbsp;·&nbsp; {g.inscripciones?.length ?? 0} inscritos
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <select
+                                id="select-grupo"
+                                value={grupoSeleccionado}
+                                onChange={e => setGrupoSeleccionado(e.target.value)}
+                                className="w-full sm:w-96 px-4 py-3 rounded-xl border border-slate-700
+                                           bg-slate-950 text-white focus:outline-none focus:ring-2
+                                           focus:ring-indigo-500 text-sm appearance-none cursor-pointer"
+                            >
+                                <option value="">— Selecciona un grupo para cargar la planilla —</option>
+                                {grupos.map(g => (
+                                    <option key={g.id} value={g.id}>
+                                        Paralelo {g.nombre_paralelo} &nbsp;·&nbsp; {g.inscripciones?.length ?? 0} inscritos
+                                    </option>
+                                ))}
+                            </select>
+
+                            {(localStorage.getItem('user_rol') === '2' || localStorage.getItem('user_rol') === 'Docente') && grupoSeleccionado && (
+                                <div className="flex items-center gap-3">
+                                    <label className="relative cursor-pointer px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-indigo-500 rounded-xl text-sm font-bold transition duration-200 shadow-md flex items-center gap-2 whitespace-nowrap">
+                                        <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        Importar Acta CSV
+                                        <input
+                                            type="file"
+                                            accept=".csv"
+                                            onChange={handleCSVUpload}
+                                            disabled={importing}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    {importing && (
+                                        <span className="flex items-center gap-2 text-slate-400 text-xs">
+                                            <SpinnerIcon className="h-4 w-4" />
+                                            Importando...
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 
