@@ -167,12 +167,8 @@ class AcademicoController extends Controller
             ->get()
             ->count();
 
-        // 3. Total de reprobados (alumnos que reprobaron al menos una materia)
-        $totalReprobados = DB::table('inscripciones')
-            ->join('calificaciones', 'inscripciones.id', '=', 'calificaciones.inscripcion_id')
-            ->where('calificaciones.estado_aprobacion', false)
-            ->distinct('inscripciones.postulante_id')
-            ->count('inscripciones.postulante_id');
+        // 3. Total de reprobados/no aprobados (calculado por diferencia matemática exacta para consistencia absoluta)
+        $totalReprobados = $totalInscritos - $totalAprobados;
 
         // 4. Cantidad de grupos dinámicos necesarios basados en la capacidad física máxima estricta de 60 por aula
         $aforoMaximo = 60;
